@@ -46,7 +46,7 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 
 > **If you work in an enterprise, institution, or clinical setting**, you MUST use your organization's corporate VPN, managed devices, and enterprise security policies. macshield is not a substitute for enterprise security infrastructure. If your organization handles PII, neural recordings, HIPAA-covered data, or any sensitive research data, adhere to your corporate device and security policies at all times. **Qinnovates is not liable for any security compromises resulting from the use of macshield in lieu of proper enterprise or institutional security controls.**
 
-macshield is for **students, independent researchers, and individuals** who want baseline device hardening on public WiFi. It secures your local network identity (Layer 2) but is not a VPN, does not encrypt traffic, and does not replace enterprise security. See [Build your own VPN](#build-your-own-vpn-students--researchers) if you need traffic encryption on a budget.
+macshield is for **students, independent researchers, and individuals** who want baseline device hardening on public WiFi. It secures your local network identity (Layer 2), reduces potential for malware (with Quad9 DNS), and avoids routing your DNS queries through unknown public WiFi infrastructure where you have no visibility into where they go. It is not a VPN, does not encrypt traffic, and does not replace enterprise security. See [Build your own VPN](#build-your-own-vpn-students--researchers) if you need traffic encryption on a budget.
 
 ## Why it exists
 
@@ -113,11 +113,11 @@ These terms get thrown around together but they do completely different things. 
 
 ### macshield
 
-**What it does:** Reduces your local network footprint. Enables stealth mode (blocks pings and port scans), sets a generic hostname (so you don't broadcast "Kevin's MacBook Pro" to everyone on the WiFi), and disables NetBIOS (closes ports 137/138).
+**What it does:** Secures your local network identity (Layer 2). Enables stealth mode (blocks pings and port scans), sets a generic hostname (so you don't broadcast "Kevin's MacBook Pro" to everyone on the WiFi), and disables NetBIOS (closes ports 137/138). With Quad9 DNS configured, it also blocks known malware domains and avoids routing your DNS queries through the public WiFi's own DNS infrastructure, which you have no control over or visibility into.
 
-**What it protects:** Prevents passive reconnaissance on the local network. Stops your real name from leaking via hostname. Makes your Mac less visible to anyone scanning the same WiFi.
+**What it protects:** Prevents passive reconnaissance on the local network. Stops your real name from leaking via hostname. Makes your Mac less visible to anyone scanning the same WiFi. Reduces potential for malware by blocking malicious domains at the DNS level.
 
-**What it does NOT do:** macshield does not encrypt your traffic, does not hide your IP address, does not replace a VPN, and does not make you anonymous. It secures Layer 2 (local network identity) only.
+**What it does NOT do:** macshield does not encrypt your traffic, does not hide your IP address, does not replace a VPN, and does not make you anonymous.
 
 ### How they work together
 
