@@ -3,9 +3,8 @@
 set -euo pipefail
 
 INSTALL_PATH="/usr/local/bin/macshield"
-SUDOERS_PATH="/etc/sudoers.d/macshield"
 PLIST_NAME="com.qinnovates.macshield.plist"
-LAUNCHAGENT_PATH="$HOME/Library/LaunchAgents/$PLIST_NAME"
+DAEMON_PATH="/Library/LaunchDaemons/$PLIST_NAME"
 STATE_FILE="/tmp/macshield.state"
 
 ask() {
@@ -21,10 +20,9 @@ echo "=== macshield uninstaller ==="
 echo ""
 echo "This will remove:"
 echo "  1. $INSTALL_PATH"
-echo "  2. $SUDOERS_PATH (sudoers fragment)"
-echo "  3. $LAUNCHAGENT_PATH"
-echo "  4. Keychain entries under \"com.macshield.trusted\" and \"com.macshield.hostname\""
-echo "  5. Ephemeral state file ($STATE_FILE)"
+echo "  2. $DAEMON_PATH (LaunchDaemon)"
+echo "  3. Keychain entries under \"com.macshield.trusted\" and \"com.macshield.hostname\""
+echo "  4. Ephemeral state file ($STATE_FILE)"
 echo ""
 echo "Your hostname and firewall settings will remain as currently set."
 echo ""
@@ -36,28 +34,21 @@ fi
 
 echo ""
 
-# Unload LaunchAgent
-if launchctl list | grep -q "com.qinnovates.macshield" 2>/dev/null; then
-    echo "Unloading LaunchAgent..."
-    launchctl bootout "gui/$(id -u)/$PLIST_NAME" 2>/dev/null || true
+# Unload LaunchDaemon
+if sudo launchctl list | grep -q "com.qinnovates.macshield" 2>/dev/null; then
+    echo "Unloading LaunchDaemon..."
+    sudo launchctl bootout system/"$PLIST_NAME" 2>/dev/null || true
 fi
 
 # Remove files
-for f in "$INSTALL_PATH" "$LAUNCHAGENT_PATH"; do
-    if [[ -f "$f" ]]; then
-        echo "Removing $f"
-        if [[ "$f" == /usr/* ]] || [[ "$f" == /etc/* ]]; then
-            sudo rm -f "$f"
-        else
-            rm -f "$f"
-        fi
-    fi
-done
+if [[ -f "$INSTALL_PATH" ]]; then
+    echo "Removing $INSTALL_PATH"
+    sudo rm -f "$INSTALL_PATH"
+fi
 
-# Remove sudoers
-if [[ -f "$SUDOERS_PATH" ]]; then
-    echo "Removing $SUDOERS_PATH"
-    sudo rm -f "$SUDOERS_PATH"
+if [[ -f "$DAEMON_PATH" ]]; then
+    echo "Removing $DAEMON_PATH"
+    sudo rm -f "$DAEMON_PATH"
 fi
 
 # Clear Keychain entries

@@ -28,5 +28,11 @@
 
     <key>StandardErrorPath</key>
     <string>/tmp/macshield.stderr.log</string>
+
+    <key>UserName</key>
+    <string>root</string>
+
+    <key>GroupName</key>
+    <string>wheel</string>
 </dict>
 </plist>

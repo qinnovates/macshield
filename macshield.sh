@@ -186,8 +186,8 @@ do_harden() {
 
     # 1. Stealth mode
     log "  [1/3] Enabling stealth mode (blocks ICMP pings and port scans)"
-    log "        Running: sudo socketfilterfw --setstealthmode on"
-    sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on >/dev/null 2>&1
+    log "        Running: socketfilterfw --setstealthmode on"
+    /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on >/dev/null 2>&1
     log "        Done."
 
     # 2. Generic hostname
@@ -207,18 +207,18 @@ do_harden() {
     fi
 
     log "  [2/3] Setting hostname to generic \"$generic_display\" (hides identity on local network)"
-    log "        Running: sudo scutil --set ComputerName \"$generic_display\""
-    sudo /usr/sbin/scutil --set ComputerName "$generic_display"
-    log "        Running: sudo scutil --set LocalHostName \"$generic_host\""
-    sudo /usr/sbin/scutil --set LocalHostName "$generic_host"
-    log "        Running: sudo scutil --set HostName \"$generic_host\""
-    sudo /usr/sbin/scutil --set HostName "$generic_host"
+    log "        Running: scutil --set ComputerName \"$generic_display\""
+    /usr/sbin/scutil --set ComputerName "$generic_display"
+    log "        Running: scutil --set LocalHostName \"$generic_host\""
+    /usr/sbin/scutil --set LocalHostName "$generic_host"
+    log "        Running: scutil --set HostName \"$generic_host\""
+    /usr/sbin/scutil --set HostName "$generic_host"
     log "        Done."
 
     # 3. NetBIOS
     log "  [3/3] Disabling NetBIOS (closes ports 137/138, stops name broadcast)"
-    log "        Running: sudo launchctl bootout system/com.apple.netbiosd"
-    if sudo /bin/launchctl bootout system/com.apple.netbiosd 2>/dev/null; then
+    log "        Running: launchctl bootout system/com.apple.netbiosd"
+    if /bin/launchctl bootout system/com.apple.netbiosd 2>/dev/null; then
         log "        Done."
     else
         log "        Note: NetBIOS daemon was already stopped or is SIP-protected."
@@ -243,8 +243,8 @@ do_relax() {
 
     # 1. Stealth mode off
     log "  [1/3] Disabling stealth mode (AirDrop, Spotify Connect, etc. will work)"
-    log "        Running: sudo socketfilterfw --setstealthmode off"
-    sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode off >/dev/null 2>&1
+    log "        Running: socketfilterfw --setstealthmode off"
+    /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode off >/dev/null 2>&1
     log "        Done."
 
     # 2. Restore personal hostname
@@ -256,12 +256,12 @@ do_relax() {
         personal_host=$(echo "$personal_host" | sed "s/[^a-zA-Z0-9-]//g")
 
         log "  [2/3] Restoring personal hostname \"$personal_name\""
-        log "        Running: sudo scutil --set ComputerName \"$personal_name\""
-        sudo /usr/sbin/scutil --set ComputerName "$personal_name"
-        log "        Running: sudo scutil --set LocalHostName \"$personal_host\""
-        sudo /usr/sbin/scutil --set LocalHostName "$personal_host"
-        log "        Running: sudo scutil --set HostName \"$personal_host\""
-        sudo /usr/sbin/scutil --set HostName "$personal_host"
+        log "        Running: scutil --set ComputerName \"$personal_name\""
+        /usr/sbin/scutil --set ComputerName "$personal_name"
+        log "        Running: scutil --set LocalHostName \"$personal_host\""
+        /usr/sbin/scutil --set LocalHostName "$personal_host"
+        log "        Running: scutil --set HostName \"$personal_host\""
+        /usr/sbin/scutil --set HostName "$personal_host"
         log "        Done."
     else
         log "  [2/3] No personal hostname stored in Keychain. Skipping."
@@ -269,10 +269,10 @@ do_relax() {
 
     # 3. NetBIOS back on
     log "  [3/3] Re-enabling NetBIOS"
-    log "        Running: sudo launchctl enable system/com.apple.netbiosd"
-    sudo /bin/launchctl enable system/com.apple.netbiosd 2>/dev/null || true
-    log "        Running: sudo launchctl kickstart system/com.apple.netbiosd"
-    if sudo /bin/launchctl kickstart system/com.apple.netbiosd 2>/dev/null; then
+    log "        Running: launchctl enable system/com.apple.netbiosd"
+    /bin/launchctl enable system/com.apple.netbiosd 2>/dev/null || true
+    log "        Running: launchctl kickstart system/com.apple.netbiosd"
+    if /bin/launchctl kickstart system/com.apple.netbiosd 2>/dev/null; then
         log "        Done."
     else
         log "        Note: NetBIOS daemon could not be started (may be SIP-protected)."
@@ -376,18 +376,11 @@ cmd_check() {
         log "Stored personal hostname: (none)"
     fi
 
-    # LaunchAgent
-    if [[ -f "$HOME/Library/LaunchAgents/com.qinnovates.macshield.plist" ]]; then
-        log "LaunchAgent: installed"
+    # LaunchDaemon
+    if [[ -f "/Library/LaunchDaemons/com.qinnovates.macshield.plist" ]]; then
+        log "LaunchDaemon: installed"
     else
-        log "LaunchAgent: not installed"
-    fi
-
-    # Sudoers
-    if [[ -f "/etc/sudoers.d/macshield" ]]; then
-        log "Sudoers fragment: installed"
-    else
-        log "Sudoers fragment: not installed"
+        log "LaunchDaemon: not installed"
     fi
 }
 

@@ -10,7 +10,7 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 | Hostname set to generic "MacBook Pro" | Personal hostname restored |
 | NetBIOS disabled (ports 137/138 closed) | NetBIOS re-enabled |
 
-macshield detects network changes via a LaunchAgent and applies the right profile automatically.
+macshield detects network changes via a LaunchDaemon and applies the right profile automatically.
 
 ## Why it exists
 
@@ -45,9 +45,6 @@ brew install macshield
 After install, Homebrew will print setup instructions. Run these:
 
 ```bash
-# Start the LaunchAgent (auto-triggers on network changes)
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.qinnovates.macshield.plist
-
 # Trust your home network
 macshield trust
 
@@ -67,9 +64,8 @@ chmod +x install.sh macshield.sh
 The installer walks through each step with explicit yes/no consent. It will:
 
 1. Copy `macshield` to `/usr/local/bin/`
-2. Install a sudoers fragment (8 specific commands, shown before you approve)
-3. Install a LaunchAgent that triggers on WiFi changes
-4. Optionally trust your current network
+2. Install a LaunchDaemon that triggers on WiFi changes (runs as root, no sudoers needed)
+3. Optionally trust your current network
 
 After installation:
 
@@ -84,7 +80,7 @@ Run these commands in order to confirm everything is working:
 
 ```bash
 # 1. Check current state. Shows WiFi status, trust level, stealth mode,
-#    hostname, and whether the LaunchAgent/sudoers are installed.
+#    hostname, and whether the LaunchDaemon is installed.
 macshield --check
 
 # 2. Manually harden. Enables stealth mode (blocks ICMP pings and port scans),
@@ -106,7 +102,7 @@ macshield relax
 macshield --check
 ```
 
-From here, macshield runs automatically. When you connect to an untrusted network, the LaunchAgent triggers `macshield harden`. When you connect to a trusted network, it triggers `macshield relax`. No manual intervention needed.
+From here, macshield runs automatically. When you connect to an untrusted network, the LaunchDaemon triggers `macshield harden`. When you connect to a trusted network, it triggers `macshield relax`. No manual intervention needed.
 
 ## How it works
 
@@ -114,7 +110,7 @@ From here, macshield runs automatically. When you connect to an untrusted networ
 WiFi network changes
         |
         v
-LaunchAgent fires (WatchPaths on system network plists)
+LaunchDaemon fires (WatchPaths on system network plists)
         |
         v
 macshield --trigger
@@ -135,7 +131,7 @@ Check Keychain for matching hash
   relax   harden
 ```
 
-**Network detection:** LaunchAgent watches `/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist` and `preferences.plist`. Any WiFi change triggers macshield.
+**Network detection:** A LaunchDaemon watches `/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist` and `preferences.plist`. Any WiFi change triggers macshield. The daemon runs as root, so no sudoers fragment is needed.
 
 **Trust storage:** Trusted networks are stored as `HMAC-SHA256(hardware_uuid, ssid)` hashes in macOS Keychain under the service `com.macshield.trusted`. The hardware UUID (IOPlatformUUID) is the HMAC key, making hashes machine-bound. Even if Keychain contents are extracted, an attacker sees only hex hashes, not SSID names.
 
@@ -173,39 +169,19 @@ macshield prints every action it takes, including the exact commands it runs:
 [macshield]
 [macshield] Applying protections:
 [macshield]   [1/3] Enabling stealth mode (blocks ICMP pings and port scans)
-[macshield]         Running: sudo socketfilterfw --setstealthmode on
+[macshield]         Running: socketfilterfw --setstealthmode on
 [macshield]         Done.
 [macshield]   [2/3] Setting hostname to generic "MacBook Pro" (hides identity on local network)
-[macshield]         Running: sudo scutil --set ComputerName "MacBook Pro"
-[macshield]         Running: sudo scutil --set LocalHostName "MacBook-Pro"
-[macshield]         Running: sudo scutil --set HostName "MacBook-Pro"
+[macshield]         Running: scutil --set ComputerName "MacBook Pro"
+[macshield]         Running: scutil --set LocalHostName "MacBook-Pro"
+[macshield]         Running: scutil --set HostName "MacBook-Pro"
 [macshield]         Done.
 [macshield]   [3/3] Disabling NetBIOS (closes ports 137/138, stops name broadcast)
-[macshield]         Running: sudo launchctl bootout system/com.apple.netbiosd
+[macshield]         Running: launchctl bootout system/com.apple.netbiosd
 [macshield]         Done.
 [macshield]
 [macshield] All protections active. Your Mac is hardened.
 ```
-
-## Sudoers fragment
-
-The installer places a sudoers file at `/etc/sudoers.d/macshield` granting passwordless sudo for exactly 8 commands:
-
-```
-Cmnd_Alias MACSHIELD_CMDS = \
-    /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on, \
-    /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode off, \
-    /usr/sbin/scutil --set ComputerName *, \
-    /usr/sbin/scutil --set LocalHostName *, \
-    /usr/sbin/scutil --set HostName *, \
-    /bin/launchctl bootout system/com.apple.netbiosd, \
-    /bin/launchctl enable system/com.apple.netbiosd, \
-    /bin/launchctl kickstart system/com.apple.netbiosd
-
-%admin ALL=(root) NOPASSWD: MACSHIELD_CMDS
-```
-
-This is required because the LaunchAgent runs non-interactively (cannot prompt for a password). The fragment is validated with `visudo -c` before installation.
 
 ## Security model
 
@@ -213,7 +189,7 @@ This is required because the LaunchAgent runs non-interactively (cannot prompt f
 - **No network calls.** macshield never phones home, never auto-updates, never sends telemetry.
 - **No plaintext secrets.** SSIDs are stored as HMAC hashes in Keychain, never written to disk as cleartext.
 - **Ephemeral logs.** All output goes to `/tmp/` and is cleared on reboot. Logs never contain SSIDs.
-- **Minimal sudo.** Only 8 specific commands are granted passwordless sudo, each scoped to exact paths.
+- **No sudoers fragment.** macshield uses a LaunchDaemon (runs as root) instead of a sudoers fragment with wildcard permissions. This eliminates the risk of a compromised user process leveraging passwordless sudo commands.
 - **SIP-compatible.** macshield does not modify protected system files. NetBIOS control may be limited on some macOS versions due to SIP, and macshield handles this gracefully.
 
 ## Comparison
@@ -241,7 +217,7 @@ Or run the uninstall script directly:
 ./uninstall.sh
 ```
 
-This removes the binary, sudoers fragment, LaunchAgent, Keychain entries, and ephemeral state files. Your hostname and firewall settings are left as currently set.
+This removes the binary, LaunchDaemon, Keychain entries, and ephemeral state files. Your hostname and firewall settings are left as currently set.
 
 ## Troubleshooting
 
@@ -255,34 +231,18 @@ networksetup -listallhardwareports | grep -A2 "Wi-Fi"
 
 If your WiFi is on a different interface, macshield will still detect it. If the issue persists, run `ipconfig getsummary en0` and check if SSID appears in the output.
 
-### "sudo: a password is required"
-
-The sudoers fragment wasn't installed. If you used Homebrew:
-
-```bash
-brew postinstall macshield
-```
-
-If you used the manual installer, re-run `./install.sh` and accept step 2.
-
-You can verify the fragment exists:
-
-```bash
-cat /etc/sudoers.d/macshield
-```
-
-### LaunchAgent not triggering on network changes
+### LaunchDaemon not triggering on network changes
 
 Check if it's loaded:
 
 ```bash
-launchctl list | grep macshield
+sudo launchctl list | grep macshield
 ```
 
 If not listed, load it:
 
 ```bash
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.qinnovates.macshield.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/com.qinnovates.macshield.plist
 ```
 
 Check the logs after switching networks:
@@ -330,8 +290,7 @@ Homebrew:
 ```bash
 brew uninstall macshield
 brew untap qinnovates/macshield
-sudo rm -f /etc/sudoers.d/macshield
-rm -f ~/Library/LaunchAgents/com.qinnovates.macshield.plist
+sudo rm -f /Library/LaunchDaemons/com.qinnovates.macshield.plist
 ```
 
 Manual:
