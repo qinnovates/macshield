@@ -22,14 +22,24 @@ else
     INSTALL_PATH="/usr/local/bin/macshield"
 fi
 
+# Colors
+if [[ -t 1 ]]; then
+    C_RESET="\033[0m"; C_BOLD="\033[1m"; C_DIM="\033[2m"
+    C_RED="\033[31m"; C_GREEN="\033[32m"; C_YELLOW="\033[33m"; C_CYAN="\033[36m"
+    C_BOLD_WHITE="\033[1;37m"; C_BOLD_CYAN="\033[1;36m"; C_BOLD_GREEN="\033[1;32m"
+else
+    C_RESET=""; C_BOLD=""; C_DIM=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_CYAN=""
+    C_BOLD_WHITE=""; C_BOLD_CYAN=""; C_BOLD_GREEN=""
+fi
+
 log() {
-    echo "[macshield] $*"
+    echo -e "${C_CYAN}[macshield]${C_RESET} $*"
 }
 
 ask() {
     local prompt="$1"
     local reply
-    printf "%s [y/N]: " "$prompt"
+    printf "${C_CYAN}[macshield]${C_RESET} %s ${C_DIM}[y/N]:${C_RESET} " "$prompt"
     read -r reply
     [[ "$reply" =~ ^[Yy]$ ]]
 }
@@ -37,7 +47,22 @@ ask() {
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "=== macshield installer ==="
+if [[ -t 1 ]]; then
+    echo -e "\033[36m"
+    cat <<'BANNER'
+  ███╗   ███╗ █████╗  ██████╗ ███████╗██╗  ██╗██╗███████╗██╗     ██████╗
+  ████╗ ████║██╔══██╗██╔════╝ ██╔════╝██║  ██║██║██╔════╝██║     ██╔══██╗
+  ██╔████╔██║███████║██║      ███████╗███████║██║█████╗  ██║     ██║  ██║
+  ██║╚██╔╝██║██╔══██║██║      ╚════██║██╔══██║██║██╔══╝  ██║     ██║  ██║
+  ██║ ╚═╝ ██║██║  ██║╚██████╗ ███████║██║  ██║██║███████╗██████╗ ██████╔╝
+  ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚═════╝╚═════╝
+BANNER
+    echo -e "\033[0m"
+    echo -e "  \033[1;37m>> network-aware macos security hardening <<\033[0m"
+    echo -e "  \033[2m>> by qinnovate // github.com/qinnovates <<\033[0m"
+else
+    echo "=== macshield installer ==="
+fi
 echo ""
 echo "macshield automatically hardens your Mac on untrusted WiFi networks."
 echo ""
@@ -77,11 +102,11 @@ echo ""
 # ---------------------------------------------------------------------------
 
 if $HOMEBREW_INSTALL; then
-    echo "Step 1: Install binary"
+    echo -e "${C_BOLD_WHITE}Step 1: Install binary${C_RESET}"
     echo "  Already installed by Homebrew at $INSTALL_PATH"
     log "Binary managed by Homebrew. Skipping copy."
 else
-    echo "Step 1: Install macshield to $INSTALL_PATH"
+    echo -e "${C_BOLD_WHITE}Step 1: Install macshield to $INSTALL_PATH${C_RESET}"
     echo "  This makes the 'macshield' command available system-wide."
     if ask "  Proceed?"; then
         sudo cp "$SCRIPT_DIR/macshield.sh" "$INSTALL_PATH"
@@ -97,7 +122,7 @@ echo ""
 # Step 2: Sudoers authorization (scoped, no wildcards)
 # ---------------------------------------------------------------------------
 
-echo "Step 2: Authorize privileged commands"
+echo -e "${C_BOLD_WHITE}Step 2: Authorize privileged commands${C_RESET}"
 echo ""
 echo "  macshield needs elevated privileges for 3 operations:"
 echo "    - Stealth mode (socketfilterfw)"
@@ -157,7 +182,7 @@ echo ""
 # Step 3: LaunchAgent (runs as your user)
 # ---------------------------------------------------------------------------
 
-echo "Step 3: Install LaunchAgent"
+echo -e "${C_BOLD_WHITE}Step 3: Install LaunchAgent${C_RESET}"
 echo "  This watches for WiFi network changes and triggers macshield automatically."
 echo "  It runs as YOUR user (not root). It watches:"
 echo "    /Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist"
@@ -196,7 +221,7 @@ echo ""
 # Step 4: Trust current network
 # ---------------------------------------------------------------------------
 
-echo "Step 4: Trust current network?"
+echo -e "${C_BOLD_WHITE}Step 4: Trust current network?${C_RESET}"
 
 WIFI_IFACE=$(networksetup -listallhardwareports | awk '/Wi-Fi|AirPort/{getline; print $2}')
 CURRENT_SSID=""
@@ -237,11 +262,13 @@ echo ""
 # Step 5: Store personal hostname
 # ---------------------------------------------------------------------------
 
+echo -e "${C_BOLD_WHITE}Step 5: Hostname consent${C_RESET}"
+
 CURRENT_HOSTNAME=$(scutil --get ComputerName 2>/dev/null || echo "")
 GENERIC_HOSTNAME=$(system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Model Name/{print $2}')
 
 if [[ -n "$CURRENT_HOSTNAME" && "$CURRENT_HOSTNAME" != "$GENERIC_HOSTNAME" ]]; then
-    echo "  WARNING: macshield will CHANGE YOUR COMPUTER NAME on untrusted networks."
+    echo -e "  ${C_YELLOW}WARNING:${C_RESET} macshield will ${C_BOLD}CHANGE YOUR COMPUTER NAME${C_RESET} on untrusted networks."
     echo ""
     echo "  On untrusted WiFi, your hostname will be set to a generic name"
     echo "  (e.g., \"MacBook Pro\") to prevent identity leaking over the local network."
@@ -271,7 +298,7 @@ fi
 # Step 6: DNS configuration (optional)
 # ---------------------------------------------------------------------------
 
-echo "Step 6: Configure secure DNS? (optional)"
+echo -e "${C_BOLD_WHITE}Step 6: Configure secure DNS? (optional)${C_RESET}"
 echo ""
 echo "  Your DNS provider can see every domain you visit. Your ISP's default"
 echo "  DNS logs your browsing history and may sell it to advertisers."
@@ -344,7 +371,7 @@ echo ""
 # Step 7: SOCKS proxy (optional)
 # ---------------------------------------------------------------------------
 
-echo "Step 7: Configure SOCKS proxy? (optional)"
+echo -e "${C_BOLD_WHITE}Step 7: Configure SOCKS proxy? (optional)${C_RESET}"
 echo ""
 echo "  A SOCKS proxy routes your traffic through a secure tunnel."
 echo "  This is useful if you run a local proxy (e.g., ssh -D, Tor,"
@@ -441,7 +468,7 @@ echo ""
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "=== Installation complete ==="
+echo -e "${C_BOLD_GREEN}=== Installation complete ===${C_RESET}"
 echo ""
 [[ -f "$INSTALL_PATH" ]] && echo "  Installed: $INSTALL_PATH"
 [[ -f "$AGENT_PATH" ]] && echo "  Installed: $AGENT_PATH (LaunchAgent, runs as your user)"

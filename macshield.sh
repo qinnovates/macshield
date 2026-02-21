@@ -58,22 +58,67 @@ cleanup() {
 trap cleanup EXIT
 
 # ---------------------------------------------------------------------------
+# Colors (disabled if not a terminal)
+# ---------------------------------------------------------------------------
+
+if [[ -t 1 ]]; then
+    C_RESET="\033[0m"
+    C_BOLD="\033[1m"
+    C_DIM="\033[2m"
+    C_RED="\033[31m"
+    C_GREEN="\033[32m"
+    C_YELLOW="\033[33m"
+    C_BLUE="\033[34m"
+    C_CYAN="\033[36m"
+    C_WHITE="\033[37m"
+    C_BOLD_CYAN="\033[1;36m"
+    C_BOLD_GREEN="\033[1;32m"
+    C_BOLD_RED="\033[1;31m"
+    C_BOLD_YELLOW="\033[1;33m"
+    C_BOLD_WHITE="\033[1;37m"
+else
+    C_RESET="" C_BOLD="" C_DIM="" C_RED="" C_GREEN="" C_YELLOW=""
+    C_BLUE="" C_CYAN="" C_WHITE="" C_BOLD_CYAN="" C_BOLD_GREEN=""
+    C_BOLD_RED="" C_BOLD_YELLOW="" C_BOLD_WHITE=""
+fi
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 log() {
-    echo "[macshield] $*"
+    echo -e "${C_CYAN}[macshield]${C_RESET} $*"
+}
+
+log_header() {
+    echo -e "${C_BOLD_CYAN}[macshield]${C_RESET} ${C_BOLD_WHITE}$*${C_RESET}"
+}
+
+log_success() {
+    echo -e "${C_CYAN}[macshield]${C_RESET} ${C_GREEN}$*${C_RESET}"
+}
+
+log_warn() {
+    echo -e "${C_CYAN}[macshield]${C_RESET} ${C_YELLOW}$*${C_RESET}"
+}
+
+log_error() {
+    echo -e "${C_CYAN}[macshield]${C_RESET} ${C_RED}$*${C_RESET}"
+}
+
+log_dim() {
+    echo -e "${C_CYAN}[macshield]${C_RESET} ${C_DIM}$*${C_RESET}"
 }
 
 die() {
-    echo "[macshield] ERROR: $*" >&2
+    echo -e "${C_BOLD_RED}[macshield] ERROR:${C_RESET} ${C_RED}$*${C_RESET}" >&2
     exit 1
 }
 
 ask() {
     local prompt="$1"
     local reply
-    printf "[macshield] %s [y/N]: " "$prompt"
+    printf "${C_CYAN}[macshield]${C_RESET} %s ${C_DIM}[y/N]:${C_RESET} " "$prompt"
     read -r reply
     [[ "$reply" =~ ^[Yy]$ ]]
 }
@@ -81,7 +126,7 @@ ask() {
 ask_default_yes() {
     local prompt="$1"
     local reply
-    printf "[macshield] %s [Y/n]: " "$prompt"
+    printf "${C_CYAN}[macshield]${C_RESET} %s ${C_DIM}[Y/n]:${C_RESET} " "$prompt"
     read -r reply
     [[ ! "$reply" =~ ^[Nn]$ ]]
 }
@@ -258,13 +303,13 @@ do_harden() {
     fi
 
     log ""
-    log "Applying protections:"
+    log_header "Applying protections:"
 
     # 1. Stealth mode
-    log "  [1/3] Enabling stealth mode (blocks ICMP pings and port scans)"
-    log "        Running: socketfilterfw --setstealthmode on"
+    log "  ${C_BOLD}[1/3]${C_RESET} Enabling stealth mode (blocks ICMP pings and port scans)"
+    log_dim "        Running: socketfilterfw --setstealthmode on"
     run_privileged /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on >/dev/null 2>&1
-    log "        Done."
+    log_success "        Done."
 
     # 2. Generic hostname
     local generic_display generic_host
@@ -282,30 +327,27 @@ do_harden() {
         fi
     fi
 
-    log "  [2/3] Changing hostname to generic \"$generic_display\" (hides identity on local network)"
-    log "        Note: This changes your computer name system-wide. It affects"
-    log "        AirDrop, Bluetooth, Terminal prompt, and Sharing preferences."
-    log "        Your original name is saved in Keychain for restoration."
-    log "        Running: scutil --set ComputerName \"$generic_display\""
+    log "  ${C_BOLD}[2/3]${C_RESET} Changing hostname to generic \"${C_YELLOW}$generic_display${C_RESET}\" (hides identity)"
+    log_dim "        Running: scutil --set ComputerName \"$generic_display\""
     run_privileged /usr/sbin/scutil --set ComputerName "$generic_display"
-    log "        Running: scutil --set LocalHostName \"$generic_host\""
+    log_dim "        Running: scutil --set LocalHostName \"$generic_host\""
     run_privileged /usr/sbin/scutil --set LocalHostName "$generic_host"
-    log "        Running: scutil --set HostName \"$generic_host\""
+    log_dim "        Running: scutil --set HostName \"$generic_host\""
     run_privileged /usr/sbin/scutil --set HostName "$generic_host"
-    log "        Done."
+    log_success "        Done."
 
     # 3. NetBIOS
-    log "  [3/3] Disabling NetBIOS (closes ports 137/138, stops name broadcast)"
-    log "        Running: launchctl bootout system/com.apple.netbiosd"
+    log "  ${C_BOLD}[3/3]${C_RESET} Disabling NetBIOS (closes ports 137/138, stops name broadcast)"
+    log_dim "        Running: launchctl bootout system/com.apple.netbiosd"
     if run_privileged /bin/launchctl bootout system/com.apple.netbiosd 2>/dev/null; then
-        log "        Done."
+        log_success "        Done."
     else
-        log "        Note: NetBIOS daemon was already stopped or is SIP-protected."
+        log_warn "        Note: NetBIOS daemon was already stopped or is SIP-protected."
     fi
 
     set_state "hardened"
     log ""
-    log "All protections active. Your Mac is hardened."
+    log_success "All protections active. Your Mac is hardened."
 }
 
 do_relax() {
@@ -318,13 +360,13 @@ do_relax() {
     fi
 
     log ""
-    log "Relaxing protections:"
+    log_header "Relaxing protections:"
 
     # 1. Stealth mode off
-    log "  [1/3] Disabling stealth mode (AirDrop, Spotify Connect, etc. will work)"
-    log "        Running: socketfilterfw --setstealthmode off"
+    log "  ${C_BOLD}[1/3]${C_RESET} Disabling stealth mode (AirDrop, Spotify Connect, etc. will work)"
+    log_dim "        Running: socketfilterfw --setstealthmode off"
     run_privileged /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode off >/dev/null 2>&1
-    log "        Done."
+    log_success "        Done."
 
     # 2. Restore personal hostname
     local personal_name
@@ -334,32 +376,32 @@ do_relax() {
         # Remove characters invalid for LocalHostName (only alphanumeric and hyphens)
         personal_host=$(echo "$personal_host" | sed "s/[^a-zA-Z0-9-]//g")
 
-        log "  [2/3] Restoring personal hostname \"$personal_name\""
-        log "        Running: scutil --set ComputerName \"$personal_name\""
+        log "  ${C_BOLD}[2/3]${C_RESET} Restoring personal hostname \"${C_GREEN}$personal_name${C_RESET}\""
+        log_dim "        Running: scutil --set ComputerName \"$personal_name\""
         run_privileged /usr/sbin/scutil --set ComputerName "$personal_name"
-        log "        Running: scutil --set LocalHostName \"$personal_host\""
+        log_dim "        Running: scutil --set LocalHostName \"$personal_host\""
         run_privileged /usr/sbin/scutil --set LocalHostName "$personal_host"
-        log "        Running: scutil --set HostName \"$personal_host\""
+        log_dim "        Running: scutil --set HostName \"$personal_host\""
         run_privileged /usr/sbin/scutil --set HostName "$personal_host"
-        log "        Done."
+        log_success "        Done."
     else
-        log "  [2/3] No personal hostname stored in Keychain. Skipping."
+        log_dim "  [2/3] No personal hostname stored in Keychain. Skipping."
     fi
 
     # 3. NetBIOS back on
-    log "  [3/3] Re-enabling NetBIOS"
-    log "        Running: launchctl enable system/com.apple.netbiosd"
+    log "  ${C_BOLD}[3/3]${C_RESET} Re-enabling NetBIOS"
+    log_dim "        Running: launchctl enable system/com.apple.netbiosd"
     run_privileged /bin/launchctl enable system/com.apple.netbiosd 2>/dev/null || true
-    log "        Running: launchctl kickstart system/com.apple.netbiosd"
+    log_dim "        Running: launchctl kickstart system/com.apple.netbiosd"
     if run_privileged /bin/launchctl kickstart system/com.apple.netbiosd 2>/dev/null; then
-        log "        Done."
+        log_success "        Done."
     else
-        log "        Note: NetBIOS daemon could not be started (may be SIP-protected)."
+        log_warn "        Note: NetBIOS daemon could not be started (may be SIP-protected)."
     fi
 
     set_state "relaxed"
     log ""
-    log "Protections relaxed. Full network functionality restored."
+    log_success "Protections relaxed. Full network functionality restored."
 }
 
 # ---------------------------------------------------------------------------
@@ -377,97 +419,107 @@ cmd_trigger() {
     # Settle delay: network state may not be final immediately
     sleep "$SETTLE_DELAY"
 
-    log "Network change detected"
+    log_header "Network change detected"
 
     local ssid
     if ! ssid=$(get_current_ssid); then
-        log "No WiFi connection detected. Defaulting to hardened mode."
+        log_warn "No WiFi connection detected. Defaulting to hardened mode."
         do_harden
         return
     fi
 
-    log "Current SSID: (hidden from logs)"
-    log "Computing network fingerprint..."
+    log "Current SSID: ${C_DIM}(hidden from logs)${C_RESET}"
+    log_dim "Computing network fingerprint..."
 
     local hash
     hash=$(compute_hmac "$ssid")
 
-    log "Checking trusted networks in Keychain..."
+    log_dim "Checking trusted networks in Keychain..."
 
     if keychain_is_trusted "$hash"; then
-        log "Result: TRUSTED network"
+        log_success "Result: TRUSTED network"
         do_relax
     else
-        log "Result: UNTRUSTED network"
+        log_warn "Result: UNTRUSTED network"
         do_harden
     fi
 }
 
 cmd_check() {
-    log "macshield v${VERSION}"
+    log_header "macshield v${VERSION}"
     log ""
 
     # Current state
     local state
     state=$(get_state)
-    log "Current state: $state"
+    if [[ "$state" == "hardened" ]]; then
+        log "Current state: ${C_BOLD_RED}$state${C_RESET}"
+    elif [[ "$state" == "relaxed" ]]; then
+        log "Current state: ${C_BOLD_GREEN}$state${C_RESET}"
+    else
+        log "Current state: ${C_YELLOW}$state${C_RESET}"
+    fi
 
     # WiFi info
     local ssid
     if ssid=$(get_current_ssid); then
-        log "WiFi connected: yes"
+        log "WiFi connected: ${C_GREEN}yes${C_RESET}"
 
         local hash
         hash=$(compute_hmac "$ssid")
         if keychain_is_trusted "$hash"; then
-            log "Network trust: TRUSTED"
+            log "Network trust: ${C_BOLD_GREEN}TRUSTED${C_RESET}"
         else
-            log "Network trust: UNTRUSTED"
+            log "Network trust: ${C_BOLD_RED}UNTRUSTED${C_RESET}"
         fi
     else
-        log "WiFi connected: no"
+        log "WiFi connected: ${C_YELLOW}no${C_RESET}"
     fi
 
     # Stealth mode
     local stealth
     stealth=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode 2>/dev/null || echo "unknown")
-    log "Stealth mode: $stealth"
+    if [[ "$stealth" == *"enabled"* ]]; then
+        log "Stealth mode: ${C_GREEN}$stealth${C_RESET}"
+    else
+        log "Stealth mode: ${C_YELLOW}$stealth${C_RESET}"
+    fi
 
     # Hostname
     local hostname
     hostname=$(scutil --get ComputerName 2>/dev/null || echo "unknown")
-    log "Hostname: $hostname"
+    log "Hostname: ${C_BOLD}$hostname${C_RESET}"
 
     local generic
     generic=$(get_generic_display_name)
     if [[ "$hostname" == "$generic" ]]; then
-        log "Hostname type: generic (hardened)"
+        log "Hostname type: ${C_YELLOW}generic (hardened)${C_RESET}"
     else
-        log "Hostname type: personal"
+        log "Hostname type: ${C_GREEN}personal${C_RESET}"
     fi
 
     # Stored personal hostname
     local stored
     stored=$(keychain_get_hostname)
     if [[ -n "$stored" ]]; then
-        log "Stored personal hostname: $stored"
+        log "Stored personal hostname: ${C_DIM}$stored${C_RESET}"
     else
-        log "Stored personal hostname: (none)"
+        log "Stored personal hostname: ${C_DIM}(none)${C_RESET}"
     fi
 
     # LaunchAgent
     local agent_path="$HOME/Library/LaunchAgents/com.qinnovates.macshield.plist"
     if [[ -f "$agent_path" ]]; then
-        log "LaunchAgent: installed"
+        log "LaunchAgent: ${C_GREEN}installed${C_RESET}"
     else
-        log "LaunchAgent: not installed"
+        log "LaunchAgent: ${C_RED}not installed${C_RESET}"
     fi
 
     # Sudoers fragment
     if [[ -f "/etc/sudoers.d/macshield" ]]; then
-        log "Sudoers authorization: installed"
+        log "Sudoers authorization: ${C_GREEN}installed${C_RESET}"
     else
-        log "Sudoers authorization: not installed (manual sudo prompts)"
+        log "Sudoers authorization: ${C_YELLOW}not installed (manual sudo prompts)${C_RESET}"
     fi
 
     # DNS (from system config)
@@ -477,9 +529,9 @@ cmd_check() {
         local dns_servers
         dns_servers=$(networksetup -getdnsservers Wi-Fi 2>/dev/null | tr '\n' ', ' | sed 's/,$//')
         if [[ -n "$dns_servers" && "$dns_servers" != *"any DNS"* ]]; then
-            log "DNS servers: $dns_servers"
+            log "DNS servers: ${C_CYAN}$dns_servers${C_RESET}"
         else
-            log "DNS servers: system default (ISP)"
+            log "DNS servers: ${C_YELLOW}system default (ISP)${C_RESET}"
         fi
     fi
 }
@@ -499,8 +551,8 @@ cmd_trust() {
     fi
 
     keychain_store_trusted "$hash"
-    log "Network added to trusted list."
-    log "Fingerprint stored in Keychain (HMAC hash, not SSID)."
+    log_success "Network added to trusted list."
+    log_dim "Fingerprint stored in Keychain (HMAC hash, not SSID)."
 
     # If currently hardened, relax now
     if [[ "$(get_state)" == "hardened" ]]; then
@@ -512,9 +564,9 @@ cmd_trust() {
 cmd_trust_paranoid() {
     # Remove all trusted networks
     keychain_clear_all
-    log "Paranoid mode: all trusted networks removed."
-    log "macshield will treat ALL networks as untrusted."
-    log "Use 'macshield relax' to manually relax (expires on disconnect)."
+    log_warn "Paranoid mode: all trusted networks removed."
+    log "macshield will treat ${C_BOLD_RED}ALL${C_RESET} networks as untrusted."
+    log_dim "Use 'macshield relax' to manually relax (expires on disconnect)."
     do_harden
 }
 
@@ -528,7 +580,7 @@ cmd_untrust() {
     hash=$(compute_hmac "$ssid")
 
     keychain_remove_trusted "$hash"
-    log "Network removed from trusted list."
+    log_warn "Network removed from trusted list."
 
     # Harden if we're currently relaxed
     if [[ "$(get_state)" == "relaxed" ]]; then
@@ -541,14 +593,14 @@ cmd_relax() {
     local duration="${1:-}"
 
     echo ""
-    log "=== Manual Relax ==="
+    log_header "=== Manual Relax ==="
     echo ""
     log "This will:"
-    log "  1. Disable stealth mode (AirDrop, Spotify Connect, etc. will work)"
-    log "  2. Restore your personal hostname from Keychain"
-    log "  3. Re-enable NetBIOS"
+    log "  ${C_GREEN}1.${C_RESET} Disable stealth mode (AirDrop, Spotify Connect, etc. will work)"
+    log "  ${C_GREEN}2.${C_RESET} Restore your personal hostname from Keychain"
+    log "  ${C_GREEN}3.${C_RESET} Re-enable NetBIOS"
     echo ""
-    log "These changes use sudo for 3 system commands."
+    log_dim "These changes use sudo for 3 system commands."
     if [[ -n "$duration" ]]; then
         log "Protections will be re-applied after $duration."
     else
@@ -595,22 +647,22 @@ cmd_relax() {
 
 cmd_harden() {
     echo ""
-    log "=== Manual Harden ==="
+    log_header "=== Manual Harden ==="
     echo ""
     log "This will:"
-    log "  1. Enable stealth mode (blocks ICMP pings and port scans)"
-    log "  2. Set your hostname to a generic name (e.g., \"MacBook Pro\")"
-    log "  3. Disable NetBIOS (close ports 137/138, stop name broadcast)"
+    log "  ${C_RED}1.${C_RESET} Enable stealth mode (blocks ICMP pings and port scans)"
+    log "  ${C_RED}2.${C_RESET} Set your hostname to a generic name (e.g., \"MacBook Pro\")"
+    log "  ${C_RED}3.${C_RESET} Disable NetBIOS (close ports 137/138, stop name broadcast)"
     echo ""
-    log "WARNING: Hostname change"
+    log_warn "WARNING: Hostname change"
     log "  Changing your computer name affects how your Mac appears on local"
     log "  networks, in AirDrop, Bluetooth, Terminal prompts, and Sharing"
     log "  preferences. Some apps that reference your hostname may behave"
     log "  differently. Your original name is saved in Keychain and restored"
     log "  when you return to a trusted network or run 'macshield relax'."
     echo ""
-    log "These changes use sudo for 3 system commands."
-    log "Protections will be re-evaluated on the next network change."
+    log_dim "These changes use sudo for 3 system commands."
+    log_dim "Protections will be re-evaluated on the next network change."
     echo ""
 
     if ! ask "Proceed?"; then
@@ -697,30 +749,30 @@ cmd_scan() {
     # --- Interactive preamble (skip with --quiet) ---
     if [[ "$quiet" != "--quiet" ]]; then
         echo ""
-        log "=== Port Scan ==="
+        log_header "=== Port Scan ==="
         echo ""
-        log "What this does:"
+        log "${C_BOLD}What this does:${C_RESET}"
         log "  Scans your Mac for all open TCP and UDP ports using 'lsof'."
         log "  Labels each port with what it does (DNS, Bonjour, AirPlay, etc.)."
-        log "  Flags non-standard ports as ** REVIEW ** for your attention."
+        log "  Flags non-standard ports as ${C_YELLOW}** REVIEW **${C_RESET} for your attention."
         echo ""
-        log "What this does NOT do:"
+        log "${C_BOLD}What this does NOT do:${C_RESET}"
         log "  - No network calls. The scan reads local system state only."
         log "  - No data leaves your machine. Ever."
         echo ""
-        log "What happens to the results:"
+        log "${C_BOLD}What happens to the results:${C_RESET}"
         log "  The scan results are displayed to your terminal and then WIPED."
         log "  Nothing is saved to disk unless you explicitly choose to save."
         log "  If you save, you choose when it auto-deletes (default: 5 minutes)."
         echo ""
-        log "  For scripting or non-interactive use:"
-        log "    macshield scan --purge 5m   Save report, auto-delete after 5 minutes"
-        log "    macshield scan --purge 1h   Save report, auto-delete after 1 hour"
-        log "    macshield scan --quiet      Scan without prompts, display only"
+        log_dim "  For scripting or non-interactive use:"
+        log_dim "    macshield scan --purge 5m   Save report, auto-delete after 5 minutes"
+        log_dim "    macshield scan --purge 1h   Save report, auto-delete after 1 hour"
+        log_dim "    macshield scan --quiet      Scan without prompts, display only"
         echo ""
-        log "Security note:"
-        log "  This script contains zero network operations (no curl, wget, nc,"
-        log "  or socket calls). You can verify: grep -n 'curl\|wget\|nc ' macshield.sh"
+        log_dim "Security note:"
+        log_dim "  This script contains zero network operations (no curl, wget, nc,"
+        log_dim "  or socket calls). You can verify: grep -n 'curl\|wget\|nc ' macshield.sh"
         echo ""
 
         if ! ask "Proceed with port scan?"; then
@@ -991,10 +1043,10 @@ audit_check() {
 
 cmd_audit() {
     echo ""
-    log "=== Security Audit ==="
+    log_header "=== Security Audit ==="
     echo ""
     log "This checks your system security posture. Read-only, no changes."
-    log "No data leaves your machine. No network calls."
+    log_dim "No data leaves your machine. No network calls."
     echo ""
 
     local pass_count=0
@@ -1002,7 +1054,7 @@ cmd_audit() {
     local fail_count=0
 
     # --- System Protection ---
-    log "--- System Protection ---"
+    log_header "--- System Protection ---"
     echo ""
 
     # SIP
@@ -1097,7 +1149,7 @@ cmd_audit() {
     echo ""
 
     # --- Sharing Services ---
-    log "--- Sharing Services ---"
+    log_header "--- Sharing Services ---"
     echo ""
 
     # Remote Login (SSH)
@@ -1183,7 +1235,7 @@ cmd_audit() {
     echo ""
 
     # --- Privacy Settings ---
-    log "--- Privacy Settings ---"
+    log_header "--- Privacy Settings ---"
     echo ""
 
     # Analytics
@@ -1234,7 +1286,7 @@ cmd_audit() {
     echo ""
 
     # --- WiFi Security ---
-    log "--- WiFi Security ---"
+    log_header "--- WiFi Security ---"
     echo ""
 
     local iface
@@ -1298,7 +1350,7 @@ cmd_audit() {
     echo ""
 
     # --- ARP Table (MitM detection) ---
-    log "--- ARP Table (MitM Detection) ---"
+    log_header "--- ARP Table (MitM Detection) ---"
     echo ""
 
     local arp_dupes
@@ -1318,7 +1370,7 @@ cmd_audit() {
     echo ""
 
     # --- File Hygiene ---
-    log "--- File Hygiene ---"
+    log_header "--- File Hygiene ---"
     echo ""
 
     # .ssh permissions
@@ -1391,9 +1443,9 @@ cmd_audit() {
     echo ""
 
     # --- Summary ---
-    log "--- Summary ---"
+    log_header "--- Summary ---"
     echo ""
-    log "  PASS: $pass_count  |  WARN: $warn_count  |  FAIL: $fail_count"
+    log "  ${C_GREEN}PASS: $pass_count${C_RESET}  |  ${C_YELLOW}WARN: $warn_count${C_RESET}  |  ${C_RED}FAIL: $fail_count${C_RESET}"
     echo ""
 
     if [[ $fail_count -gt 0 ]]; then
@@ -1412,11 +1464,11 @@ cmd_audit() {
 
 cmd_connections() {
     echo ""
-    log "=== Active Connections ==="
+    log_header "=== Active Connections ==="
     echo ""
     log "Shows all established TCP connections with process names."
     log "This tells you who your Mac is talking to right now."
-    log "Read-only, no network calls, no changes."
+    log_dim "Read-only, no network calls, no changes."
     echo ""
 
     local conns
@@ -1472,17 +1524,17 @@ cmd_connections() {
 
 cmd_persistence() {
     echo ""
-    log "=== Persistence Check ==="
+    log_header "=== Persistence Check ==="
     echo ""
     log "Lists non-Apple LaunchAgents, LaunchDaemons, login items,"
     log "and cron jobs. These are mechanisms that run code automatically."
-    log "Read-only, no changes."
+    log_dim "Read-only, no changes."
     echo ""
 
     local found=0
 
     # User LaunchAgents
-    log "--- User LaunchAgents (~/$HOME/Library/LaunchAgents) ---"
+    log_header "--- User LaunchAgents (~/$HOME/Library/LaunchAgents) ---"
     echo ""
     if [[ -d "$HOME/Library/LaunchAgents" ]]; then
         local user_agents
@@ -1508,7 +1560,7 @@ cmd_persistence() {
 
     # System LaunchAgents
     local sys_found=0
-    log "--- System LaunchAgents (/Library/LaunchAgents) ---"
+    log_header "--- System LaunchAgents (/Library/LaunchAgents) ---"
     echo ""
     if [[ -d "/Library/LaunchAgents" ]]; then
         local sys_agents
@@ -1532,7 +1584,7 @@ cmd_persistence() {
 
     # LaunchDaemons
     local daemon_found=0
-    log "--- System LaunchDaemons (/Library/LaunchDaemons) ---"
+    log_header "--- System LaunchDaemons (/Library/LaunchDaemons) ---"
     echo ""
     if [[ -d "/Library/LaunchDaemons" ]]; then
         local daemons
@@ -1555,7 +1607,7 @@ cmd_persistence() {
     echo ""
 
     # Login Items
-    log "--- Login Items ---"
+    log_header "--- Login Items ---"
     echo ""
     local login_items
     login_items=$(osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null || echo "")
@@ -1567,7 +1619,7 @@ cmd_persistence() {
     echo ""
 
     # Cron jobs
-    log "--- Cron Jobs ---"
+    log_header "--- Cron Jobs ---"
     echo ""
     local cron_jobs
     cron_jobs=$(crontab -l 2>/dev/null || true)
@@ -1581,7 +1633,7 @@ cmd_persistence() {
     echo ""
 
     # Kernel extensions
-    log "--- Non-Apple Kernel Extensions ---"
+    log_header "--- Non-Apple Kernel Extensions ---"
     echo ""
     local kexts
     kexts=$(kextstat 2>/dev/null | grep -v "com.apple" | tail -n +2 || true)
@@ -1604,10 +1656,10 @@ cmd_persistence() {
 
 cmd_permissions() {
     echo ""
-    log "=== Permissions Audit (TCC) ==="
+    log_header "=== Permissions Audit (TCC) ==="
     echo ""
     log "Shows which apps have been granted sensitive permissions."
-    log "Reads from your user TCC database. Read-only, no changes."
+    log_dim "Reads from your user TCC database. Read-only, no changes."
     echo ""
 
     local tcc_db="$HOME/Library/Application Support/com.apple.TCC/TCC.db"
@@ -1649,7 +1701,7 @@ cmd_permissions() {
 }
 
 cmd_purge() {
-    log "Purging all macshield traces..."
+    log_header "Purging all macshield traces..."
     log ""
 
     local count=0
@@ -1768,7 +1820,7 @@ require_macos
 if [[ "${1:-}" != "--trigger" && "${1:-}" != "setup" && "${1:-}" != "--install" && "${1:-}" != "--version" && "${1:-}" != "--uninstall" ]]; then
     if [[ ! -f "/etc/sudoers.d/macshield" ]] && ! security find-generic-password -s "com.macshield.trusted" &>/dev/null; then
         echo ""
-        echo "[macshield] Setup not complete. Run 'macshield setup' for interactive configuration."
+        echo -e "${C_BOLD_YELLOW}[macshield]${C_RESET} ${C_YELLOW}Setup not complete.${C_RESET} Run ${C_BOLD}'macshield setup'${C_RESET} for interactive configuration."
         echo ""
     fi
 fi
