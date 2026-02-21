@@ -622,25 +622,72 @@ cmd_harden() {
 }
 
 cmd_install() {
-    local script_dir
-    script_dir="$(cd "$(dirname "$0")" && pwd -P)"
-
-    # Check Homebrew libexec first, then same directory as binary
     local installer=""
-    if [[ -f "$script_dir/../libexec/install.sh" ]]; then
-        installer="$(cd "$script_dir/../libexec" && pwd -P)/install.sh"
-    elif [[ -f "$script_dir/install.sh" ]]; then
-        installer="$script_dir/install.sh"
-    else
-        die "install.sh not found. Re-clone from https://github.com/qinnovates/macshield"
+
+    # Method 1: Homebrew Cellar path (resolves through symlink)
+    local real_bin
+    real_bin="$(realpath "$0" 2>/dev/null || readlink -f "$0" 2>/dev/null || echo "")"
+    if [[ -n "$real_bin" ]]; then
+        local cellar_dir
+        cellar_dir="$(dirname "$real_bin")"
+        if [[ -f "$cellar_dir/../libexec/install.sh" ]]; then
+            installer="$(cd "$cellar_dir/../libexec" && pwd -P)/install.sh"
+        fi
     fi
+
+    # Method 2: Same directory as the script
+    if [[ -z "$installer" ]]; then
+        local script_dir
+        script_dir="$(cd "$(dirname "$0")" && pwd -P)"
+        if [[ -f "$script_dir/install.sh" ]]; then
+            installer="$script_dir/install.sh"
+        fi
+    fi
+
+    # Method 3: Homebrew prefix query
+    if [[ -z "$installer" ]] && command -v brew &>/dev/null; then
+        local prefix
+        prefix="$(brew --prefix macshield 2>/dev/null || echo "")"
+        if [[ -n "$prefix" && -f "$prefix/libexec/install.sh" ]]; then
+            installer="$prefix/libexec/install.sh"
+        fi
+    fi
+
+    [[ -z "$installer" ]] && die "install.sh not found. Re-clone from https://github.com/qinnovates/macshield"
     exec bash "$installer"
 }
 
 cmd_uninstall() {
-    local script_dir
-    script_dir="$(cd "$(dirname "$0")" && pwd -P)"
-    exec bash "$script_dir/uninstall.sh"
+    local uninstaller=""
+
+    local real_bin
+    real_bin="$(realpath "$0" 2>/dev/null || readlink -f "$0" 2>/dev/null || echo "")"
+    if [[ -n "$real_bin" ]]; then
+        local cellar_dir
+        cellar_dir="$(dirname "$real_bin")"
+        if [[ -f "$cellar_dir/../libexec/uninstall.sh" ]]; then
+            uninstaller="$(cd "$cellar_dir/../libexec" && pwd -P)/uninstall.sh"
+        fi
+    fi
+
+    if [[ -z "$uninstaller" ]]; then
+        local script_dir
+        script_dir="$(cd "$(dirname "$0")" && pwd -P)"
+        if [[ -f "$script_dir/uninstall.sh" ]]; then
+            uninstaller="$script_dir/uninstall.sh"
+        fi
+    fi
+
+    if [[ -z "$uninstaller" ]] && command -v brew &>/dev/null; then
+        local prefix
+        prefix="$(brew --prefix macshield 2>/dev/null || echo "")"
+        if [[ -n "$prefix" && -f "$prefix/libexec/uninstall.sh" ]]; then
+            uninstaller="$prefix/libexec/uninstall.sh"
+        fi
+    fi
+
+    [[ -z "$uninstaller" ]] && die "uninstall.sh not found."
+    exec bash "$uninstaller"
 }
 
 cmd_scan() {

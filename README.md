@@ -31,6 +31,8 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 - [How it works](#how-it-works)
 - [Commands](#commands)
 - [Port scanning](#port-scanning)
+- [Timed relax](#timed-relax)
+- [Paranoid mode](#paranoid-mode)
 - [Optional security commands](#optional-security-commands)
 - [Security model](#security-model)
 - [Do it manually](#do-it-manually-no-script-needed)
@@ -141,15 +143,21 @@ brew tap qinnovates/tools
 brew install macshield
 ```
 
-After install, Homebrew will print setup instructions. Run these:
+After install, run the interactive setup:
 
 ```bash
-# Trust your home network
-macshield trust
-
-# Confirm everything is working
-macshield --check
+macshield setup
 ```
+
+The setup walks you through 7 steps with explicit yes/no consent at each:
+
+1. **Binary install** (skipped if Homebrew already installed it)
+2. **Sudoers authorization** for exact privileged commands (stealth mode, hostname, NetBIOS)
+3. **LaunchAgent** that auto-triggers on WiFi changes (runs as your user, not root)
+4. **Trust current network** (optional)
+5. **Hostname consent** with warning about what changes and how restoration works
+6. **DNS configuration** (optional): Cloudflare, Quad9, Mullvad, or keep current
+7. **SOCKS proxy** (optional): Tor, SSH tunnel, custom, or skip
 
 ### Manual install
 
@@ -160,19 +168,7 @@ chmod +x install.sh macshield.sh
 ./install.sh
 ```
 
-The installer walks through each step with explicit yes/no consent. It will:
-
-1. Copy `macshield` to `/usr/local/bin/`
-2. Install a sudoers authorization for exact privileged commands (you approve this)
-3. Install a LaunchAgent that triggers on WiFi changes (runs as your user, not root)
-4. Optionally trust your current network
-
-After installation:
-
-```bash
-macshield trust            # Trust your current WiFi network
-macshield --check          # See current state
-```
+The installer walks through the same 7 interactive steps described above.
 
 ## Verify it works
 
@@ -245,6 +241,7 @@ sudo exact commands (via sudoers fragment)
 ## Commands
 
 ```
+macshield setup            Run the interactive setup (DNS, proxy, trust, hostname)
 macshield --check          Show current state (no changes)
 macshield --status         Alias for --check
 macshield trust            Add current WiFi network as trusted
@@ -253,14 +250,15 @@ macshield untrust          Remove current network from trusted list
 macshield harden           Manually harden now
 macshield relax            Manually relax (re-applies on next network change)
 macshield relax --for 2h   Temporarily relax for a duration (2h, 30m, 300s)
-macshield scan             Scan open ports and generate a local report
-macshield scan --purge 5m  Scan and auto-delete the report after a duration
+macshield scan             Scan open ports (display only, nothing saved to disk)
+macshield scan --purge 5m  Scan, save report, auto-delete after a duration
+macshield scan --quiet     Scan without prompts (display only, no save option)
 macshield purge            Delete all macshield logs, reports, and temp files
 macshield audit            System security posture check (read-only)
 macshield connections      Show active TCP connections
 macshield persistence      List non-Apple LaunchAgents, LaunchDaemons, login items
 macshield permissions      Show apps with sensitive permissions (camera, mic, etc.)
-macshield --install        Run the installer
+macshield --install        Run the installer (alias for setup)
 macshield --uninstall      Run the uninstaller
 macshield --version        Print version
 macshield --help           Print help
@@ -268,43 +266,228 @@ macshield --help           Print help
 
 ## Port scanning
 
-`macshield scan` generates a local-only report of all open TCP and UDP ports on your machine. Each port is labeled with what it does (DNS, Bonjour, CUPS, etc.) or flagged as `** REVIEW **` if it's non-standard.
+`macshield scan` scans all open TCP and UDP ports on your machine using `lsof`. Each port is labeled with what it does (DNS, Bonjour, CUPS, AirPlay, etc.) or flagged as `** REVIEW **` if it's non-standard.
+
+### Default behavior (display only, nothing saved)
 
 ```bash
-# Scan and save report to /tmp/macshield-port-report.txt
 macshield scan
+```
 
-# Scan and auto-delete the report after 5 minutes
+The scan displays results to your terminal and then asks if you want to save. If you say no (or just press Enter), nothing is written to disk. This is the most secure default.
+
+Example output:
+
+```
+================================================================
+  macshield Port Scan Report
+  Generated: 2026-02-21 09:30:15
+  Host: MacBook Pro
+================================================================
+
+--- TCP LISTENING PORTS ---
+
+  PORT     PROCESS                  PID      NOTE
+  ----------------------------------------------------------------------
+  631      cupsd                    442      CUPS (printing)
+  5000     ControlCe                1203     AirPlay / UPnP
+  7000     ControlCe                1203     AirPlay streaming
+
+  Total TCP listeners: 3
+  Ports to review: 0
+
+--- UDP PORTS ---
+
+  PORT     PROCESS                  PID      NOTE
+  ----------------------------------------------------------------------
+  53       mDNSRespo                312      DNS (domain name resolution)
+  5353     mDNSRespo                312      mDNS / Bonjour
+  137      netbiosd                 445      NetBIOS name service
+
+  Total UDP ports: 3
+
+--- FIREWALL STATUS ---
+
+  Firewall: Firewall is enabled. (State = 1)
+  Stealth mode: Stealth mode enabled.
+
+--- WARNINGS ---
+
+  Closing ports may break system features (AirDrop, printing,
+  iCloud sync, screen sharing, etc). Research each port before
+  disabling the service behind it.
+
+  Ports marked ** REVIEW ** are non-standard and worth investigating.
+  They may be legitimate (dev servers, Docker, etc.) or unexpected.
+
+================================================================
+```
+
+### Auto-delete reports
+
+If you choose to save the report, macshield asks how long to keep it. The report auto-deletes after your chosen duration:
+
+```
+[macshield] Save the report to disk? (/tmp/macshield-port-report.txt, owner-read-only) [y/N]: y
+[macshield] Report saved to /tmp/macshield-port-report.txt (permissions: 600, owner-read-only)
+[macshield] Auto-delete after how long? [5m / 1h / keep]: 5m
+[macshield] Report will auto-delete in 5 minutes.
+```
+
+Options:
+- **5m** (default): Deletes after 5 minutes
+- **1h**, **30m**, **300s**: Any duration in hours, minutes, or seconds
+- **keep**: Persists until you run `macshield purge`
+
+The saved report is at `/tmp/macshield-port-report.txt` with `600` permissions (owner-read only). It is never sent over the network.
+
+### Scripting / non-interactive modes
+
+```bash
+# Save report, auto-delete after 5 minutes (no prompts)
 macshield scan --purge 5m
 
+# Save report, auto-delete after 1 hour
+macshield scan --purge 1h
+
+# Display only, no prompts, no save option
+macshield scan --quiet
+```
+
+### Manual cleanup
+
+```bash
 # Delete all macshield logs, reports, and temp files
 macshield purge
 ```
 
-The report is stored at `/tmp/macshield-port-report.txt` with `600` permissions (owner-read only). It is never sent over the network. macshield makes zero network calls, ever.
+`macshield purge` removes: scan reports, audit reports, stdout/stderr logs, state files, and lock files. macshield itself stays installed.
 
 **Be careful closing ports.** Some ports are required for system features (AirDrop, printing, iCloud sync, screen sharing). The report labels known system ports so you can make informed decisions. Ports marked `** REVIEW **` are worth investigating but may be legitimate (dev servers, Docker, Spotify, etc.).
 
+### Zero network calls
+
+macshield's scan uses only `lsof` (local system state) and `socketfilterfw` (firewall status). No data leaves your machine. You can verify this yourself:
+
+```bash
+grep -n 'curl\|wget\|nc ' $(which macshield)
+```
+
+## Timed relax
+
+Temporarily relax protections for a set duration. Useful when you need AirDrop or Spotify Connect on an untrusted network:
+
+```bash
+macshield relax --for 2h    # Relax for 2 hours, then auto-harden
+macshield relax --for 30m   # Relax for 30 minutes
+macshield relax --for 300s  # Relax for 300 seconds
+```
+
+When the timer expires, macshield automatically re-hardens. If you just run `macshield relax` without `--for`, protections stay relaxed until the next network change.
+
+## Paranoid mode
+
+Remove all trusted networks and treat every network as untrusted:
+
+```bash
+macshield trust --paranoid
+```
+
+This clears all trusted network hashes from Keychain and immediately hardens. macshield will never auto-relax until you explicitly trust a network again with `macshield trust`.
+
 ## Optional security commands
 
-These commands are not run by default and do not modify anything. They are read-only checks to help you understand your system's security posture.
+These commands are not run by default and do not modify anything. They are read-only checks to help you understand your system's security posture. No data leaves your machine.
 
 ### `macshield audit`
 
-Checks system security settings: SIP, FileVault, Gatekeeper, Application Firewall, stealth mode, Lockdown Mode, Secure Boot, XProtect version, sharing services (SSH, screen sharing, file sharing, remote management, AirDrop), privacy settings (analytics, Siri, Spotlight Suggestions), WiFi security type, DNS servers, ARP table for duplicate MACs (possible MitM), and file hygiene (.ssh permissions, exposed credentials).
-
-Inspired by [Lynis](https://cisofy.com/lynis/), [mOSL](https://github.com/0xmachos/mOSL), and [drduh's macOS Security Guide](https://github.com/drduh/macOS-Security-and-Privacy-Guide).
+Full system security posture check with color-coded PASS/WARN/FAIL results.
 
 ```bash
 macshield audit
 ```
 
+**What it checks:**
+
+| Category | Checks |
+|----------|--------|
+| System Protection | SIP, FileVault, Gatekeeper, Firewall, Stealth mode, Lockdown Mode, Secure Boot, XProtect |
+| Sharing Services | Remote Login (SSH), Screen Sharing, File Sharing (SMB), Remote Management (ARD), Remote Apple Events, Bluetooth, AirDrop |
+| Privacy Settings | Mac Analytics, Siri, Spotlight Suggestions, Personalized Ads |
+| WiFi Security | Encryption type (WPA3/WPA2/WEP/Open), Private WiFi Address (MAC randomization), DNS servers |
+| ARP Table | Duplicate MAC addresses (possible ARP spoofing / man-in-the-middle attack) |
+| File Hygiene | .ssh directory permissions, SSH key permissions, .env files near home, plaintext .git-credentials, .netrc permissions |
+
+Example output:
+
+```
+[macshield] --- System Protection ---
+
+  [PASS] System Integrity Protection (SIP) - enabled
+  [PASS] FileVault disk encryption - enabled
+  [PASS] Gatekeeper - enabled
+  [PASS] Application Firewall - enabled
+  [PASS] Stealth mode - enabled
+  [INFO] Lockdown Mode - not enabled (extreme protection, breaks many features)
+
+[macshield] --- Sharing Services ---
+
+  [PASS] Remote Login (SSH) - disabled
+  [PASS] Screen Sharing - disabled
+  [PASS] File Sharing (SMB) - disabled
+  [PASS] Remote Management (ARD) - disabled
+  [PASS] Remote Apple Events - disabled
+  [PASS] AirDrop - contacts only
+
+[macshield] --- Privacy Settings ---
+
+  [WARN] Share Mac Analytics - enabled (sends usage data to Apple)
+  [INFO] Siri - enabled (sends voice data to Apple for processing)
+  [PASS] Spotlight Suggestions - disabled (queries stay local)
+  [PASS] Personalized Ads - disabled
+
+[macshield] --- WiFi Security ---
+
+  [PASS] WiFi security - WPA3 Personal
+  [PASS] Private WiFi Address - enabled (MAC randomization)
+
+[macshield] --- ARP Table (MitM Detection) ---
+
+  [PASS] ARP table - no duplicate MAC addresses (no obvious ARP spoofing)
+
+[macshield] --- File Hygiene ---
+
+  [PASS] .ssh directory - permissions 700
+  [PASS] SSH key permissions - all 2 private keys have correct permissions
+  [WARN] .env files found - 3 file(s) near home directory (may contain secrets)
+
+[macshield] --- Summary ---
+
+  PASS: 16  |  WARN: 2  |  FAIL: 0
+```
+
+Inspired by [Lynis](https://cisofy.com/lynis/), [mOSL](https://github.com/0xmachos/mOSL), and [drduh's macOS Security Guide](https://github.com/drduh/macOS-Security-and-Privacy-Guide).
+
 ### `macshield connections`
 
-Lists all established TCP connections with process names. Shows which apps are actively communicating and with what remote addresses.
+Lists all established TCP connections with process names and remote addresses. Shows exactly who your Mac is talking to right now.
 
 ```bash
 macshield connections
+```
+
+Example output:
+
+```
+[macshield] === Active Connections ===
+
+  PROCESS              PID      REMOTE                                   LOCAL PORT
+  ------------------------------------------------------------------------------------------
+  Safari               1842     17.253.144.10:443                        52301
+  Spotify              2103     35.186.224.25:4070                       55102
+  cloudphotod          487      17.248.133.60:443                        51204
+
+  Total unique connections: 3
 ```
 
 ### `macshield persistence`
@@ -315,15 +498,73 @@ Lists non-Apple LaunchAgents, LaunchDaemons, login items, cron jobs, and kernel 
 macshield persistence
 ```
 
+Example output:
+
+```
+[macshield] --- User LaunchAgents (~/Library/LaunchAgents) ---
+
+  com.qinnovates.macshield                    /opt/homebrew/bin/macshield
+  com.spotify.webhelper                       /Applications/Spotify.app/...
+
+[macshield] --- System LaunchAgents (/Library/LaunchAgents) ---
+
+  (none)
+
+[macshield] --- System LaunchDaemons (/Library/LaunchDaemons) ---
+
+  com.docker.vmnetd                           /Library/PrivilegedHelperTools/...
+
+[macshield] --- Login Items ---
+
+  (none or could not read)
+
+[macshield] --- Cron Jobs ---
+
+  (none)
+
+[macshield] --- Non-Apple Kernel Extensions ---
+
+  (none)
+
+  Total non-Apple persistence items: 3
+```
+
 ### `macshield permissions`
 
-Shows which apps have been granted sensitive permissions: screen recording, accessibility, microphone, camera, full disk access, and automation (Apple Events). Reads from the macOS TCC (Transparency, Consent, and Control) database.
-
-Revoke permissions in System Settings > Privacy & Security.
+Shows which apps have been granted sensitive permissions by reading the macOS TCC (Transparency, Consent, and Control) database. Covers: screen recording, accessibility, microphone, camera, full disk access, and automation (Apple Events).
 
 ```bash
 macshield permissions
 ```
+
+Example output:
+
+```
+[macshield] === Permissions Audit (TCC) ===
+
+  Screen Recording:
+    - com.loom.desktop
+    - us.zoom.xos
+
+  Accessibility:
+    - com.raycast.macos
+    - com.1password.1password
+
+  Microphone:
+    - us.zoom.xos
+    - com.spotify.client
+
+  Camera:
+    - us.zoom.xos
+
+  Full Disk Access:
+    - com.apple.Terminal
+
+  Automation (Apple Events):
+    - com.googlecode.iterm2
+```
+
+Revoke permissions in System Settings > Privacy & Security.
 
 ## Verbose output
 
@@ -674,7 +915,7 @@ Homebrew:
 
 ```bash
 brew uninstall macshield
-brew untap qinnovates/macshield
+brew untap qinnovates/tools
 sudo rm -f /etc/sudoers.d/macshield
 rm -f ~/Library/LaunchAgents/com.qinnovates.macshield.plist
 ```
