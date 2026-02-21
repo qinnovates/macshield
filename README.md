@@ -156,8 +156,22 @@ The setup walks you through 7 steps with explicit yes/no consent at each:
 3. **LaunchAgent** that auto-triggers on WiFi changes (runs as your user, not root)
 4. **Trust current network** (optional)
 5. **Hostname consent** with warning about what changes and how restoration works
-6. **DNS configuration** (optional): Cloudflare, Quad9, Mullvad, or keep current
-7. **SOCKS proxy** (optional): Tor, SSH tunnel, custom, or skip
+6. **DNS configuration** (optional): Quad9 (recommended, blocks malware), Cloudflare, Mullvad, or keep current
+7. **SOCKS proxy** (optional): SSH tunnel, custom, or skip. If you don't know what a SOCKS proxy is, skip this step.
+
+### DNS providers
+
+The installer offers three privacy-focused DNS providers:
+
+| Provider | Addresses | Malware blocking | Jurisdiction | Organization |
+|----------|-----------|-----------------|--------------|-------------|
+| Quad9 | 9.9.9.9, 149.112.112.112 | Yes | Switzerland | Non-profit |
+| Cloudflare | 1.1.1.1, 1.0.0.1 | No | United States | For-profit |
+| Mullvad | 100.64.0.7 | No | Sweden | For-profit (VPN company) |
+
+Quad9 is listed first because it actively blocks known malware domains at the DNS level and operates under Swiss privacy law, which is stronger than US law for data protection. Cloudflare is the fastest. Mullvad DNS only works if you are connected to Mullvad VPN.
+
+All three are significant improvements over your ISP's default DNS, which typically logs your browsing history.
 
 ### Manual install
 
@@ -668,11 +682,11 @@ lsof -iUDP -P -n
 # See your current DNS servers
 networksetup -getdnsservers Wi-Fi
 
-# Set DNS to Cloudflare (fast, no logging)
-networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
-
-# Set DNS to Quad9 (blocks malware domains, Swiss privacy law)
+# Set DNS to Quad9 (blocks malware domains, Swiss privacy law, non-profit)
 networksetup -setdnsservers Wi-Fi 9.9.9.9 149.112.112.112
+
+# Set DNS to Cloudflare (fastest, no logging, US-based)
+networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
 
 # Set DNS to Mullvad (only works if connected to Mullvad VPN)
 networksetup -setdnsservers Wi-Fi 100.64.0.7
@@ -683,11 +697,9 @@ networksetup -setdnsservers Wi-Fi empty
 
 **Configure SOCKS proxy (no install needed):**
 
-```bash
-# Route traffic through Tor (install Tor first: brew install tor && tor)
-networksetup -setsocksfirewallproxy Wi-Fi localhost 9050
-networksetup -setsocksfirewallproxystate Wi-Fi on
+Skip this if you don't know what a SOCKS proxy is. Misconfiguring a proxy will break your internet connection.
 
+```bash
 # Route traffic through an SSH tunnel
 # First, open the tunnel: ssh -D 1080 -N user@your-server.com
 networksetup -setsocksfirewallproxy Wi-Fi localhost 1080
@@ -827,6 +839,60 @@ Or run the uninstall script directly:
 ```
 
 This removes the binary, LaunchAgent, sudoers fragment, Keychain entries, and ephemeral state files. Your hostname and firewall settings are left as currently set.
+
+## Reverting changes
+
+If you configured DNS or a SOCKS proxy during setup and are experiencing issues (websites not loading, slow browsing, connection errors), here is how to revert each change:
+
+### Reset DNS to default
+
+If websites won't load or DNS resolution is slow after changing DNS:
+
+```bash
+# Reset DNS to your ISP's default
+networksetup -setdnsservers Wi-Fi empty
+
+# Flush the DNS cache
+sudo dscacheutil -flushcache && sudo killall -HUP mDNSResponder
+```
+
+### Disable SOCKS proxy
+
+If web traffic is broken after configuring a SOCKS proxy:
+
+```bash
+# Turn off the SOCKS proxy
+networksetup -setsocksfirewallproxystate Wi-Fi off
+```
+
+A SOCKS proxy routes all traffic through a tunnel. If the tunnel is not running (e.g., your SSH session ended, or Tor is not installed), all traffic will fail. Disabling the proxy restores normal direct connections.
+
+### Revert hostname
+
+If you want your personal hostname back immediately without waiting for a trusted network:
+
+```bash
+macshield relax
+```
+
+Or manually:
+
+```bash
+sudo scutil --set ComputerName "Your Name MacBook"
+sudo scutil --set LocalHostName "Your-Name-MacBook"
+sudo scutil --set HostName "Your-Name-MacBook"
+```
+
+### Revert all macshield changes
+
+To completely undo everything macshield has done:
+
+```bash
+macshield relax                              # Restore hostname, stealth, NetBIOS
+networksetup -setdnsservers Wi-Fi empty      # Reset DNS
+networksetup -setsocksfirewallproxystate Wi-Fi off  # Disable proxy
+macshield --uninstall                        # Remove macshield entirely
+```
 
 ## Troubleshooting
 

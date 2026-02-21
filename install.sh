@@ -308,14 +308,10 @@ echo "  macshield can set your DNS on the WiFi interface to a privacy-focused"
 echo "  provider. This only affects DNS lookups, not your traffic content."
 echo ""
 echo "  Options:"
-echo "    1) Cloudflare  (1.1.1.1, 1.0.0.1)   - Fast, privacy-first, no logging"
-echo "    2) Quad9       (9.9.9.9, 149.112.112.112) - Blocks malware domains, Swiss privacy law"
-echo "    3) Mullvad     (100.64.0.7)           - No logging, runs by a VPN company with strong privacy record"
+echo -e "    1) Quad9       (9.9.9.9)              - ${C_GREEN}Blocks malware domains${C_RESET}, Swiss privacy law, non-profit"
+echo "    2) Cloudflare  (1.1.1.1)              - Fastest, no logging, US-based"
+echo "    3) Mullvad     (100.64.0.7)           - No logging, requires Mullvad VPN"
 echo "    4) Keep current DNS (no change)"
-echo ""
-echo "  Note: No DNS provider today offers post-quantum encryption for DNS"
-echo "  queries. DNS-over-HTTPS (DoH) and DNS-over-TLS (DoT) use classical"
-echo "  TLS, which is sufficient for now. PQ DNS is not yet standardized."
 echo ""
 
 DNS_CHOICE=""
@@ -325,18 +321,6 @@ read -r DNS_CHOICE
 case "$DNS_CHOICE" in
     1)
         echo ""
-        echo "  Setting DNS to Cloudflare (1.1.1.1, 1.0.0.1)"
-        echo "  Running: networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1"
-        echo ""
-        if ask "  Proceed?"; then
-            networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
-            log "DNS set to Cloudflare."
-        else
-            echo "  Skipped."
-        fi
-        ;;
-    2)
-        echo ""
         echo "  Setting DNS to Quad9 (9.9.9.9, 149.112.112.112)"
         echo "  Running: networksetup -setdnsservers Wi-Fi 9.9.9.9 149.112.112.112"
         echo "  Quad9 blocks known malware domains at the DNS level."
@@ -344,6 +328,18 @@ case "$DNS_CHOICE" in
         if ask "  Proceed?"; then
             networksetup -setdnsservers Wi-Fi 9.9.9.9 149.112.112.112
             log "DNS set to Quad9."
+        else
+            echo "  Skipped."
+        fi
+        ;;
+    2)
+        echo ""
+        echo "  Setting DNS to Cloudflare (1.1.1.1, 1.0.0.1)"
+        echo "  Running: networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1"
+        echo ""
+        if ask "  Proceed?"; then
+            networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
+            log "DNS set to Cloudflare."
         else
             echo "  Skipped."
         fi
@@ -373,6 +369,9 @@ echo ""
 
 echo -e "${C_BOLD_WHITE}Step 7: Configure SOCKS proxy? (optional)${C_RESET}"
 echo ""
+echo -e "  ${C_YELLOW}If you don't know what a SOCKS proxy is, skip this step (option 3).${C_RESET}"
+echo -e "  ${C_YELLOW}Misconfiguring a proxy will break your internet connection.${C_RESET}"
+echo ""
 echo "  A SOCKS proxy routes your traffic through a secure tunnel."
 echo "  This is useful if you run a local proxy (e.g., ssh -D, Tor,"
 echo "  or a VPN with SOCKS support)."
@@ -381,39 +380,20 @@ echo "  macshield can configure macOS to use a SOCKS proxy on your"
 echo "  WiFi interface. This setting persists until you disable it."
 echo ""
 echo "  Options:"
-echo "    1) localhost:9050  (Tor default)    - Routes traffic through Tor network"
-echo "    2) localhost:1080  (SSH tunnel)     - Common for 'ssh -D 1080' tunnels"
-echo "    3) Custom          (you specify)    - Enter your own host:port"
-echo "    4) Skip            (no proxy)"
+echo "    1) localhost:1080  (SSH tunnel)     - Common for 'ssh -D 1080' tunnels"
+echo "    2) Custom          (you specify)    - Enter your own host:port"
+echo -e "    3) Skip            ${C_GREEN}(recommended)${C_RESET}   - No proxy, no changes"
 echo ""
 echo "  Note: SOCKS proxies encrypt the tunnel, not the traffic inside it."
-echo "  Use HTTPS sites for end-to-end encryption. No SOCKS implementation"
-echo "  today uses post-quantum cryptography. PQ support in TLS is emerging"
-echo "  (Chrome and Cloudflare have experimental PQ key exchange) but not"
-echo "  yet available in SOCKS proxies."
+echo "  Use HTTPS sites for end-to-end encryption."
 echo ""
 
 PROXY_CHOICE=""
-printf "  Choose [1/2/3/4]: "
+printf "  Choose [1/2/3]: "
 read -r PROXY_CHOICE
 
 case "$PROXY_CHOICE" in
     1)
-        echo ""
-        echo "  Setting SOCKS proxy to localhost:9050 (Tor)"
-        echo "  Running: networksetup -setsocksfirewallproxy Wi-Fi localhost 9050"
-        echo ""
-        echo "  Make sure Tor is running (e.g., 'brew install tor && tor')."
-        echo ""
-        if ask "  Proceed?"; then
-            networksetup -setsocksfirewallproxy Wi-Fi localhost 9050
-            networksetup -setsocksfirewallproxystate Wi-Fi on
-            log "SOCKS proxy set to localhost:9050 (Tor)."
-        else
-            echo "  Skipped."
-        fi
-        ;;
-    2)
         echo ""
         echo "  Setting SOCKS proxy to localhost:1080 (SSH tunnel)"
         echo "  Running: networksetup -setsocksfirewallproxy Wi-Fi localhost 1080"
@@ -429,7 +409,7 @@ case "$PROXY_CHOICE" in
             echo "  Skipped."
         fi
         ;;
-    3)
+    2)
         echo ""
         printf "  Enter SOCKS proxy host (e.g., localhost): "
         read -r PROXY_HOST
