@@ -301,6 +301,24 @@ macshield --uninstall
 
 Or run `./uninstall.sh` from the cloned repo.
 
+## Changelog
+
+### v0.2.0
+
+**Replaced sudoers fragment with LaunchDaemon.**
+
+The previous design installed a sudoers file at `/etc/sudoers.d/macshield` granting passwordless sudo for 8 commands. The problem: several commands used wildcards (e.g., `scutil --set ComputerName *`), meaning any process running as your user could invoke them without a password. If an attacker gained local code execution, they could leverage those wildcards to change your hostname or toggle stealth mode silently.
+
+The fix: a LaunchDaemon runs as root directly, so no sudoers fragment is needed at all. The daemon executes the same pure bash script, which is fully auditable. This eliminates wildcard sudo as an attack surface.
+
+Also fixed: WiFi detection now uses `ipconfig getsummary` as the primary method. The previous `networksetup -getairportnetwork` is unreliable on modern macOS versions (incorrectly reports "not associated" while connected).
+
+### v0.1.0
+
+Initial release. Network-aware auto-hardening with stealth mode, hostname protection, NetBIOS control, HMAC-SHA256 trust storage in Keychain, Homebrew tap.
+
+Full changelog: [CHANGELOG.md](CHANGELOG.md)
+
 ## Requirements
 
 - macOS 12 (Monterey) or later

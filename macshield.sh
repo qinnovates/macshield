@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 KEYCHAIN_SERVICE="com.macshield.trusted"
 KEYCHAIN_HOSTNAME="com.macshield.hostname"
 STATE_FILE="/tmp/macshield.state"
