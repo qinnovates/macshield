@@ -8,11 +8,19 @@ export PATH
 umask 077
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
-INSTALL_PATH="/usr/local/bin/macshield"
 PLIST_NAME="com.qinnovates.macshield.plist"
 AGENT_DIR="$HOME/Library/LaunchAgents"
 AGENT_PATH="$AGENT_DIR/$PLIST_NAME"
 SUDOERS_PATH="/etc/sudoers.d/macshield"
+
+# Detect Homebrew-managed install (binary already placed by formula)
+if [[ "$SCRIPT_DIR" == *"/libexec"* ]] && command -v macshield &>/dev/null; then
+    HOMEBREW_INSTALL=true
+    INSTALL_PATH="$(command -v macshield)"
+else
+    HOMEBREW_INSTALL=false
+    INSTALL_PATH="/usr/local/bin/macshield"
+fi
 
 log() {
     echo "[macshield] $*"
@@ -68,14 +76,20 @@ echo ""
 # Step 1: Install binary
 # ---------------------------------------------------------------------------
 
-echo "Step 1: Install macshield to $INSTALL_PATH"
-echo "  This makes the 'macshield' command available system-wide."
-if ask "  Proceed?"; then
-    sudo cp "$SCRIPT_DIR/macshield.sh" "$INSTALL_PATH"
-    sudo chmod 755 "$INSTALL_PATH"
-    log "Installed macshield to $INSTALL_PATH"
+if $HOMEBREW_INSTALL; then
+    echo "Step 1: Install binary"
+    echo "  Already installed by Homebrew at $INSTALL_PATH"
+    log "Binary managed by Homebrew. Skipping copy."
 else
-    echo "  Skipped."
+    echo "Step 1: Install macshield to $INSTALL_PATH"
+    echo "  This makes the 'macshield' command available system-wide."
+    if ask "  Proceed?"; then
+        sudo cp "$SCRIPT_DIR/macshield.sh" "$INSTALL_PATH"
+        sudo chmod 755 "$INSTALL_PATH"
+        log "Installed macshield to $INSTALL_PATH"
+    else
+        echo "  Skipped."
+    fi
 fi
 echo ""
 
@@ -165,6 +179,11 @@ if ask "  Install this?"; then
 
     mkdir -p "$AGENT_DIR"
     cp "$SCRIPT_DIR/$PLIST_NAME" "$AGENT_PATH"
+
+    # If Homebrew install, update plist to point to Homebrew binary path
+    if $HOMEBREW_INSTALL; then
+        sed -i '' "s|/usr/local/bin/macshield|$INSTALL_PATH|g" "$AGENT_PATH"
+    fi
 
     launchctl bootstrap "gui/$(id -u)" "$AGENT_PATH"
     log "Installed and loaded LaunchAgent"
