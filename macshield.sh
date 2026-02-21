@@ -1717,6 +1717,15 @@ HELP
 
 require_macos
 
+# First-run detection: if no sudoers and no trusted networks, prompt setup
+if [[ "${1:-}" != "--trigger" && "${1:-}" != "setup" && "${1:-}" != "--install" && "${1:-}" != "--version" && "${1:-}" != "--uninstall" ]]; then
+    if [[ ! -f "/etc/sudoers.d/macshield" ]] && ! security find-generic-password -s "com.macshield.trusted" &>/dev/null; then
+        echo ""
+        echo "[macshield] Setup not complete. Run 'macshield setup' for interactive configuration."
+        echo ""
+    fi
+fi
+
 case "${1:-}" in
     --trigger)
         cmd_trigger
