@@ -246,7 +246,13 @@ if [[ -n "$WIFI_IFACE" ]]; then
 fi
 
 if [[ -n "$CURRENT_SSID" ]]; then
-    echo "  You are currently connected to: \"$CURRENT_SSID\""
+    # Mask SSID: show first 2 chars + asterisks (privacy: shoulder surfing, screen recordings)
+    if [[ ${#CURRENT_SSID} -le 2 ]]; then
+        MASKED_SSID="$CURRENT_SSID"
+    else
+        MASKED_SSID="${CURRENT_SSID:0:2}$(printf '%*s' $((${#CURRENT_SSID}-2)) '' | tr ' ' '*')"
+    fi
+    echo -e "  You are currently connected to: ${C_BOLD}\"$MASKED_SSID\"${C_RESET}"
     if ask "  Add as trusted? Protections will be relaxed on this network."; then
         "$INSTALL_PATH" trust 2>/dev/null || bash "$SCRIPT_DIR/macshield.sh" trust
         log "Current network added as trusted."
