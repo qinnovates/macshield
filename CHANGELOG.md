@@ -6,7 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.3.0] - 2026-02-21
 
+### Added
+- **Color output** throughout macshield.sh and install.sh with terminal detection (`[[ -t 1 ]]`) for graceful degradation.
+- **ASCII art banner** in the installer.
+- **Security report commands in installer completion message.** After setup, users now see all available commands: `scan`, `audit`, `connections`, `persistence`, `permissions`.
+- **SSID masking** in installer. Shows first 2 characters + asterisks (e.g., `"My********"`) to prevent shoulder surfing and screen recording exposure.
+- **Malware reduction messaging.** Installer and README now communicate that Quad9 DNS blocks known malware domains.
+- **Untrusted WiFi DNS warning.** Explains that public WiFi routes DNS through infrastructure you don't control.
+- **Beginner warning** on SOCKS proxy step: "Skip this if you don't know what a SOCKS proxy is."
+- **Reverting changes section** in README: how to reset DNS, disable proxy, revert hostname, and undo all macshield changes.
+- **DNS comparison table** in README (Quad9/Cloudflare/Mullvad with jurisdiction, malware blocking, org type).
+- **Homebrew `post_install`** launches interactive installer in a new Terminal window via `open -a Terminal`.
+- **`macshield setup`** command as alias for `--install`.
+- **Homebrew symlink resolution** via `realpath` so `macshield setup` finds `libexec/install.sh` through the Cellar path.
+
 ### Changed
+- **DNS order:** Quad9 listed first (blocks malware, Swiss privacy law, non-profit). Cloudflare second, Mullvad third.
+- **Layer 2 messaging:** Disclaimer updated from "reduces your local network footprint only" to "secures your local network identity (Layer 2)."
+- **Homebrew tap renamed** from `homebrew-macshield` to `homebrew-tools` for cleaner `brew install qinnovates/tools/macshield`.
+
+### Removed
+- **Tor from SOCKS proxy options.** Tor exit nodes are frequently flagged, blocked, or associated with malicious traffic. Removed to avoid giving users a false sense of security.
+
+### Architecture
 - **Replaced root LaunchDaemon with user LaunchAgent + scoped sudoers.** The v0.2.0 LaunchDaemon ran as root persistently. v0.3.0 runs the LaunchAgent as your user (`~/Library/LaunchAgents/`). Privileged commands (stealth mode, hostname, NetBIOS) are elevated via a sudoers fragment at `/etc/sudoers.d/macshield` that the user explicitly approves during installation. No process runs persistently as root.
 - **Installer prompts for explicit consent** before installing the sudoers authorization. Users see the exact commands being authorized and can revoke anytime with `sudo rm /etc/sudoers.d/macshield`.
 - **Uninstaller cleans up** LaunchAgent, sudoers fragment, and legacy LaunchDaemon (v0.2.0 upgrade path).

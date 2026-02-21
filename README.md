@@ -998,9 +998,18 @@ Or run `./uninstall.sh` from the cloned repo.
 
 ### v0.3.0
 
-**No more root daemon. LaunchAgent + scoped sudo.**
+**No more root daemon. LaunchAgent + scoped sudo. Color output. Security reports. Privacy improvements.**
 
-The v0.2.0 LaunchDaemon ran as root persistently. Even though the script was auditable, a persistent root process is a larger attack surface than necessary. v0.3.0 replaces it with a LaunchAgent (runs as your user) plus a scoped sudoers fragment that grants NOPASSWD for exact commands only. You explicitly approve the sudoers installation, and you can revoke it anytime with `sudo rm /etc/sudoers.d/macshield`.
+- Replaced root LaunchDaemon with user LaunchAgent + scoped sudoers fragment
+- Added color output throughout with terminal detection
+- Added security commands: `scan`, `audit`, `connections`, `persistence`, `permissions`
+- SSID masked in installer (first 2 chars + asterisks) to prevent shoulder surfing
+- DNS reordered: Quad9 first (blocks malware, Swiss privacy law, non-profit)
+- Tor removed from SOCKS proxy options
+- Homebrew `post_install` auto-launches interactive installer in new Terminal window
+- Added `macshield setup` command, beginner warnings, revert instructions
+- Homebrew tap renamed to `qinnovates/tools` for cleaner install command
+- Updated messaging: macshield secures Layer 2, reduces malware potential with Quad9, avoids unknown WiFi DNS
 
 ### v0.2.0
 
