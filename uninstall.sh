@@ -2,9 +2,16 @@
 # macshield uninstaller
 set -euo pipefail
 
+# Harden PATH and umask
+PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+umask 077
+
 INSTALL_PATH="/usr/local/bin/macshield"
 PLIST_NAME="com.qinnovates.macshield.plist"
+AGENT_PATH="$HOME/Library/LaunchAgents/$PLIST_NAME"
 DAEMON_PATH="/Library/LaunchDaemons/$PLIST_NAME"
+SUDOERS_PATH="/etc/sudoers.d/macshield"
 STATE_FILE="/tmp/macshield.state"
 
 ask() {
@@ -20,9 +27,11 @@ echo "=== macshield uninstaller ==="
 echo ""
 echo "This will remove:"
 echo "  1. $INSTALL_PATH"
-echo "  2. $DAEMON_PATH (LaunchDaemon)"
-echo "  3. Keychain entries under \"com.macshield.trusted\" and \"com.macshield.hostname\""
-echo "  4. Ephemeral state file ($STATE_FILE)"
+echo "  2. LaunchAgent ($AGENT_PATH)"
+[[ -f "$DAEMON_PATH" ]] && echo "  2b. Legacy LaunchDaemon ($DAEMON_PATH)"
+echo "  3. Sudoers authorization ($SUDOERS_PATH)"
+echo "  4. Keychain entries under \"com.macshield.trusted\" and \"com.macshield.hostname\""
+echo "  5. Ephemeral state file ($STATE_FILE)"
 echo ""
 echo "Your hostname and firewall settings will remain as currently set."
 echo ""
@@ -34,9 +43,15 @@ fi
 
 echo ""
 
-# Unload LaunchDaemon
-if sudo launchctl list | grep -q "com.qinnovates.macshield" 2>/dev/null; then
-    echo "Unloading LaunchDaemon..."
+# Unload LaunchAgent
+if launchctl list 2>/dev/null | grep -q "com.qinnovates.macshield"; then
+    echo "Unloading LaunchAgent..."
+    launchctl bootout "gui/$(id -u)/com.qinnovates.macshield" 2>/dev/null || true
+fi
+
+# Unload legacy LaunchDaemon if present (v0.2.0)
+if sudo launchctl list 2>/dev/null | grep -q "com.qinnovates.macshield"; then
+    echo "Unloading legacy LaunchDaemon..."
     sudo launchctl bootout system/"$PLIST_NAME" 2>/dev/null || true
 fi
 
@@ -46,9 +61,20 @@ if [[ -f "$INSTALL_PATH" ]]; then
     sudo rm -f "$INSTALL_PATH"
 fi
 
+if [[ -f "$AGENT_PATH" ]]; then
+    echo "Removing $AGENT_PATH"
+    rm -f "$AGENT_PATH"
+fi
+
 if [[ -f "$DAEMON_PATH" ]]; then
-    echo "Removing $DAEMON_PATH"
+    echo "Removing legacy $DAEMON_PATH"
     sudo rm -f "$DAEMON_PATH"
+fi
+
+# Remove sudoers fragment
+if [[ -f "$SUDOERS_PATH" ]]; then
+    echo "Removing $SUDOERS_PATH"
+    sudo rm -f "$SUDOERS_PATH"
 fi
 
 # Clear Keychain entries
