@@ -137,7 +137,7 @@ The macshield installer optionally configures DNS and SOCKS proxy settings durin
 ### Homebrew (recommended)
 
 ```bash
-brew tap qinnovates/macshield
+brew tap qinnovates/tools
 brew install macshield
 ```
 

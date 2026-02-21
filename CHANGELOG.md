@@ -54,7 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Trusted network storage as HMAC-SHA256 hashes in macOS Keychain (post-quantum resistant)
 - Installer with explicit per-step consent
 - Clean uninstaller
-- Homebrew tap (`brew tap qinnovates/macshield`)
+- Homebrew tap (`brew tap qinnovates/tools`)
 - `trust`, `untrust`, `harden`, `relax`, `--check` commands
 - Timed relax (`relax --for 2h`)
 - Paranoid mode (`trust --paranoid`)
