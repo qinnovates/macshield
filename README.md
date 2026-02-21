@@ -33,7 +33,29 @@ macshield fills the gap: automatic, network-aware, open-source, fully auditable.
 - Kernel-level attacks, rootkits, or exploits targeting macOS services
 - Physical access attacks
 
-## Quick start
+## Install
+
+### Homebrew (recommended)
+
+```bash
+brew tap qinnovates/macshield
+brew install macshield
+```
+
+After install, Homebrew will print setup instructions. Run these:
+
+```bash
+# Start the LaunchAgent (auto-triggers on network changes)
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.qinnovates.macshield.plist
+
+# Trust your home network
+macshield trust
+
+# Confirm everything is working
+macshield --check
+```
+
+### Manual install
 
 ```bash
 git clone https://github.com/qinnovates/macshield.git
@@ -42,7 +64,12 @@ chmod +x install.sh macshield.sh
 ./install.sh
 ```
 
-The installer walks through each step with explicit yes/no consent.
+The installer walks through each step with explicit yes/no consent. It will:
+
+1. Copy `macshield` to `/usr/local/bin/`
+2. Install a sudoers fragment (8 specific commands, shown before you approve)
+3. Install a LaunchAgent that triggers on WiFi changes
+4. Optionally trust your current network
 
 After installation:
 
@@ -215,6 +242,105 @@ Or run the uninstall script directly:
 ```
 
 This removes the binary, sudoers fragment, LaunchAgent, Keychain entries, and ephemeral state files. Your hostname and firewall settings are left as currently set.
+
+## Troubleshooting
+
+### "Not connected to any WiFi network" but I am connected
+
+macshield uses multiple detection methods (`ipconfig`, `networksetup`, `system_profiler`). If none work, check that your WiFi interface is `en0`:
+
+```bash
+networksetup -listallhardwareports | grep -A2 "Wi-Fi"
+```
+
+If your WiFi is on a different interface, macshield will still detect it. If the issue persists, run `ipconfig getsummary en0` and check if SSID appears in the output.
+
+### "sudo: a password is required"
+
+The sudoers fragment wasn't installed. If you used Homebrew:
+
+```bash
+brew postinstall macshield
+```
+
+If you used the manual installer, re-run `./install.sh` and accept step 2.
+
+You can verify the fragment exists:
+
+```bash
+cat /etc/sudoers.d/macshield
+```
+
+### LaunchAgent not triggering on network changes
+
+Check if it's loaded:
+
+```bash
+launchctl list | grep macshield
+```
+
+If not listed, load it:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.qinnovates.macshield.plist
+```
+
+Check the logs after switching networks:
+
+```bash
+cat /tmp/macshield.stdout.log
+```
+
+### NetBIOS commands fail with SIP error
+
+On some macOS versions, the NetBIOS daemon (`netbiosd`) is protected by System Integrity Protection. macshield handles this gracefully and logs a note. Stealth mode and hostname protection still work normally.
+
+### "macshield: command not found" after Homebrew install
+
+Make sure Homebrew's bin directory is in your PATH:
+
+```bash
+echo $PATH | tr ':' '\n' | grep brew
+```
+
+If missing, add to your shell profile (`~/.zshrc`):
+
+```bash
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+
+### How do I see which networks are trusted?
+
+Trusted networks are stored as HMAC hashes in Keychain, not as SSID names. You can list the hashes:
+
+```bash
+security dump-keychain | grep -A4 "com.macshield.trusted"
+```
+
+To check if your current network is trusted:
+
+```bash
+macshield --check
+```
+
+### Uninstall completely
+
+Homebrew:
+
+```bash
+brew uninstall macshield
+brew untap qinnovates/macshield
+sudo rm -f /etc/sudoers.d/macshield
+rm -f ~/Library/LaunchAgents/com.qinnovates.macshield.plist
+```
+
+Manual:
+
+```bash
+macshield --uninstall
+```
+
+Or run `./uninstall.sh` from the cloned repo.
 
 ## Requirements
 
