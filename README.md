@@ -46,7 +46,7 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 
 > **If you work in an enterprise, institution, or clinical setting**, you MUST use your organization's corporate VPN, managed devices, and enterprise security policies. macshield is not a substitute for enterprise security infrastructure. If your organization handles PII, neural recordings, HIPAA-covered data, or any sensitive research data, adhere to your corporate device and security policies at all times. **Qinnovates is not liable for any security compromises resulting from the use of macshield in lieu of proper enterprise or institutional security controls.**
 
-macshield is for **students, independent researchers, and individuals** who want baseline device hardening on public WiFi. It is not a VPN, does not encrypt traffic, and does not replace enterprise security. See [Build your own VPN](#build-your-own-vpn-students--researchers) if you need traffic encryption on a budget.
+macshield is for **students, independent researchers, and individuals** who want baseline device hardening on public WiFi. It secures your local network identity (Layer 2) but is not a VPN, does not encrypt traffic, and does not replace enterprise security. See [Build your own VPN](#build-your-own-vpn-students--researchers) if you need traffic encryption on a budget.
 
 ## Why it exists
 
@@ -117,7 +117,7 @@ These terms get thrown around together but they do completely different things. 
 
 **What it protects:** Prevents passive reconnaissance on the local network. Stops your real name from leaking via hostname. Makes your Mac less visible to anyone scanning the same WiFi.
 
-**What it does NOT do:** macshield does not encrypt your traffic, does not hide your IP address, does not replace a VPN, and does not make you anonymous. It operates at the local network layer only.
+**What it does NOT do:** macshield does not encrypt your traffic, does not hide your IP address, does not replace a VPN, and does not make you anonymous. It secures Layer 2 (local network identity) only.
 
 ### How they work together
 
@@ -125,7 +125,7 @@ These terms get thrown around together but they do completely different things. 
 Layer 4 - VPN          Encrypts all traffic, hides your IP from websites
 Layer 3 - Proxy        Routes traffic through intermediary (optional)
 Layer 2 - DNS          Controls who resolves your domain lookups
-Layer 1 - macshield    Hides your identity on the local network
+Layer 1 - macshield    Secures your identity on the local network (L2)
 ```
 
 Each layer protects something different. Using a VPN without macshield still broadcasts your hostname to everyone on the local WiFi. Using macshield without a VPN still exposes your traffic to your ISP. They are complementary, not interchangeable.

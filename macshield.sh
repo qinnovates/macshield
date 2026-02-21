@@ -1798,8 +1798,8 @@ IMPORTANT: macshield changes your computer name on untrusted networks.
 This affects AirDrop, Bluetooth, Terminal prompt, and Sharing preferences.
 Your original name is restored on trusted networks.
 
-macshield is NOT a VPN, does NOT encrypt your traffic, and does NOT
-make you anonymous. It reduces your local network footprint only.
+macshield is NOT a VPN. It secures your local network identity (Layer 2)
+but does NOT encrypt your traffic or make you anonymous.
 
 DISCLAIMER: Provided as-is, without warranty. Modifies system settings
 (firewall, hostname, network services). All changes are reversible.
