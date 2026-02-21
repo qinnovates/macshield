@@ -624,7 +624,17 @@ cmd_harden() {
 cmd_install() {
     local script_dir
     script_dir="$(cd "$(dirname "$0")" && pwd -P)"
-    exec bash "$script_dir/install.sh"
+
+    # Check Homebrew libexec first, then same directory as binary
+    local installer=""
+    if [[ -f "$script_dir/../libexec/install.sh" ]]; then
+        installer="$(cd "$script_dir/../libexec" && pwd -P)/install.sh"
+    elif [[ -f "$script_dir/install.sh" ]]; then
+        installer="$script_dir/install.sh"
+    else
+        die "install.sh not found. Re-clone from https://github.com/qinnovates/macshield"
+    fi
+    exec bash "$installer"
 }
 
 cmd_uninstall() {
@@ -1760,7 +1770,7 @@ case "${1:-}" in
     purge)
         cmd_purge
         ;;
-    --install)
+    setup|--install)
         cmd_install
         ;;
     --uninstall)
