@@ -42,6 +42,7 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 - [Uninstall](#uninstall)
 - [Troubleshooting](#troubleshooting)
 - [Changelog](#changelog)
+- [Upcoming: Menu bar app](#upcoming-menu-bar-app)
 
 ---
 
@@ -1099,6 +1100,23 @@ The v0.1.0 design installed a sudoers file with wildcard permissions. v0.2.0 rep
 Initial release. Network-aware auto-hardening with stealth mode, hostname protection, NetBIOS control, HMAC-SHA256 trust storage in Keychain, Homebrew tap.
 
 Full changelog: [CHANGELOG.md](CHANGELOG.md)
+
+## Upcoming: Menu bar app
+
+A native macOS menu bar app is in development. The app will give you a shield icon in your top bar with quick access to everything macshield does today via the CLI:
+
+- Shield icon shows green (hardened) / yellow (relaxed) / red (no protection) at a glance
+- One-click harden / relax toggle
+- Trust / untrust current network
+- Run security reports (scan, audit, connections, persistence, permissions) from a dropdown
+- Configure self-destruct timers on reports
+- VPN status indicator (WARP / ProtonVPN connected or not)
+- DNS provider display (which DNS is active right now)
+- Quick link to `macshield setup` for full reconfiguration
+
+The app will be a lightweight Swift wrapper around the existing bash CLI. No new dependencies, no telemetry, no network calls. Same pure-bash engine underneath.
+
+Track progress: [github.com/qinnovates/macshield/issues](https://github.com/qinnovates/macshield/issues)
 
 ## Requirements
 
