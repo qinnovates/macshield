@@ -324,6 +324,7 @@ echo "    4) Keep current DNS (no change)"
 echo ""
 
 DNS_CHOICE=""
+DNS_NAME=""
 printf "  Choose [1/2/3/4]: "
 read -r DNS_CHOICE
 
@@ -336,6 +337,7 @@ case "$DNS_CHOICE" in
         echo ""
         if ask "  Proceed?"; then
             networksetup -setdnsservers Wi-Fi 9.9.9.9 149.112.112.112
+            DNS_NAME="Quad9"
             log "DNS set to Quad9."
         else
             echo "  Skipped."
@@ -348,6 +350,7 @@ case "$DNS_CHOICE" in
         echo ""
         if ask "  Proceed?"; then
             networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
+            DNS_NAME="Cloudflare"
             log "DNS set to Cloudflare."
         else
             echo "  Skipped."
@@ -361,6 +364,7 @@ case "$DNS_CHOICE" in
         echo ""
         if ask "  Proceed?"; then
             networksetup -setdnsservers Wi-Fi 100.64.0.7
+            DNS_NAME="Mullvad"
             log "DNS set to Mullvad."
         else
             echo "  Skipped."
@@ -514,6 +518,14 @@ case "$WARP_CHOICE" in
                     else
                         echo "  Skipped. You can enable it later:"
                         echo "    warp-cli dns families malware"
+                    fi
+                    if [[ -n "$DNS_NAME" ]]; then
+                        echo ""
+                        echo -e "  ${C_YELLOW}DNS note:${C_RESET} You set $DNS_NAME DNS in Step 6."
+                        echo "  While WARP is connected, it handles DNS through its own"
+                        echo "  encrypted tunnel (1.1.1.2 with malware blocking, or 1.1.1.1"
+                        echo "  without). Your $DNS_NAME setting is not lost. It kicks back"
+                        echo "  in automatically whenever you disconnect WARP."
                     fi
                     echo ""
                     echo "  WARP runs independently from macshield."
