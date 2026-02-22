@@ -4,6 +4,19 @@ All notable changes to macshield will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-02-22
+
+### Added
+- **Cloudflare WARP integration (Step 8).** Installer now offers to install Cloudflare WARP, a free WireGuard-based VPN that encrypts traffic and DNS (Layer 3+). Installed via Homebrew (`brew install --cask cloudflare-warp`). macshield covers Layer 2, WARP covers Layer 3+. Together they provide adequate protection with minimum requirements for students on public WiFi.
+- **Automatic malware-blocking DNS.** After WARP install, the installer runs `warp-cli dns families malware` to set DNS to 1.1.1.2, which blocks known malicious domains out of the box. No manual configuration needed.
+- **WARP documentation in README.** Feature comparison table (free vs WARP+), `warp-cli` commands for malware/family DNS profiles, DNS override behavior, and install instructions.
+- **Updated layer diagram.** Shows WARP at Layer 3 alongside macshield at Layer 1.
+
+### Changed
+- Version bumped to 0.4.0.
+- Installer intro now mentions 8 steps (was 7).
+- README changelog updated with student-focused messaging: macshield + WARP = adequate cafe/campus WiFi protection at zero cost, with `macshield setup` to toggle DNS, proxy, and run self-destructing security reports.
+
 ## [0.3.0] - 2026-02-21
 
 ### Added

@@ -1044,6 +1044,19 @@ Or run `./uninstall.sh` from the cloned repo.
 
 ## Changelog
 
+### v0.4.0
+
+**Cloudflare WARP integration. Full-stack protection for students on public WiFi.**
+
+macshield has always secured your local network identity (Layer 2). For the sake of protecting other layers, the installer now offers [Cloudflare WARP](https://1.1.1.1), a free VPN that encrypts your traffic and DNS (Layer 3+). The installer automatically applies Cloudflare's malware-blocking DNS (1.1.1.2) so known malicious domains are blocked out of the box. If you want extra privacy, WARP routes all traffic through Cloudflare's WireGuard-based network at no cost.
+
+Together, macshield + WARP offers adequate protection with minimum requirements for students looking to stay secure in cafes, libraries, and campus WiFi. You can use `macshield setup` to toggle other DNS configurations and proxy settings, and run security reports for hardening. Reports can be set to self-destruct after a configurable duration.
+
+- Added Cloudflare WARP as optional Step 8 in installer (free VPN, Homebrew install)
+- Installer auto-configures malware blocking via `warp-cli dns families malware` (DNS 1.1.1.2)
+- Updated layer diagram: macshield (Layer 2) + WARP (Layer 3+)
+- Documented `warp-cli` commands for malware/family DNS profiles
+
 ### v0.3.0
 
 **No more root daemon. LaunchAgent + scoped sudo. Color output. Security reports. Privacy improvements.**
