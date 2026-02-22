@@ -339,6 +339,36 @@ macshield --help           Print help
 
 `macshield scan` scans all open TCP and UDP ports on your machine using `lsof`. Each port is labeled with what it does (DNS, Bonjour, CUPS, AirPlay, etc.) or flagged as `** REVIEW **` if it's non-standard.
 
+**Before the scan runs, macshield tells you exactly what it will do, what it will not do, and asks for your explicit permission.** Nothing happens without your consent. Here is the preamble you see:
+
+```
+[macshield] === Port Scan ===
+
+[macshield] What this does:
+[macshield]   Scans your Mac for all open TCP and UDP ports using 'lsof'.
+[macshield]   Labels each port with what it does (DNS, Bonjour, AirPlay, etc.).
+[macshield]   Flags non-standard ports as ** REVIEW ** for your attention.
+
+[macshield] What this does NOT do:
+[macshield]   - No network calls. The scan reads local system state only.
+[macshield]   - No data leaves your machine. Ever.
+
+[macshield] What happens to the results:
+[macshield]   The scan results are displayed to your terminal and then WIPED.
+[macshield]   Nothing is saved to disk unless you explicitly choose to save.
+[macshield]   If you save, you choose when it auto-deletes (default: 5 minutes).
+
+[macshield] Proceed with port scan? [y/N]:
+```
+
+If you type anything other than `y`, the scan does not run.
+
+**What port scanning tells you:** Which services on your Mac are listening for incoming connections. This is useful for spotting unexpected listeners (a dev server you forgot, a service you did not enable, or something you do not recognize). It does not scan other machines, does not probe remote hosts, and does not send any packets. It reads local state from `lsof` and `socketfilterfw`.
+
+**What port scanning does not do:** It does not close ports, disable services, or change anything. It is read-only. Closing a port requires you to manually stop the service behind it, and the report warns you that doing so may break system features (AirDrop, printing, iCloud sync, screen sharing, etc.).
+
+**Risks:** None from the scan itself. The only risk is if you act on the results without understanding what a service does. For example, closing port 5353 disables Bonjour/mDNS, which breaks AirDrop and local device discovery. The report labels known system ports so you can make informed decisions before changing anything.
+
 ### Default behavior (display only, nothing saved)
 
 ```bash
