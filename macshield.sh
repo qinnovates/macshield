@@ -48,6 +48,39 @@ safe_write_single() {
 }
 
 # ---------------------------------------------------------------------------
+# Self-integrity check (detect tampering of the macshield binary)
+# ---------------------------------------------------------------------------
+
+verify_integrity() {
+    local expected actual script_path
+    script_path="$(command -v macshield 2>/dev/null || echo "$0")"
+    expected=$(security find-generic-password \
+        -s "com.macshield.integrity" \
+        -a "sha256" \
+        -w 2>/dev/null) || return 0  # No hash stored = skip (first run / pre-upgrade)
+    actual=$(shasum -a 256 "$script_path" | awk '{print $1}')
+    if [[ "$expected" != "$actual" ]]; then
+        echo ""
+        echo -e "${C_RED}[INTEGRITY FAILURE]${C_RESET} macshield has been modified since installation."
+        echo ""
+        echo "  Expected SHA-256: $expected"
+        echo "  Actual SHA-256:   $actual"
+        echo "  Script path:      $script_path"
+        echo ""
+        echo "  This could mean:"
+        echo "    - Someone or something modified the macshield binary"
+        echo "    - You updated macshield without re-running setup"
+        echo ""
+        echo "  To fix: re-install macshield to store a new integrity hash."
+        echo "    brew reinstall macshield   # Homebrew"
+        echo "    ./install.sh              # Manual"
+        echo ""
+        echo "  macshield will NOT run until integrity is verified."
+        exit 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Cleanup on exit (release locks, kill timer processes)
 # ---------------------------------------------------------------------------
 
@@ -1827,6 +1860,15 @@ if [[ "${1:-}" != "--trigger" && "${1:-}" != "setup" && "${1:-}" != "--install" 
     fi
 fi
 
+# Handle read-only commands before integrity check (safe without verification)
+case "${1:-}" in
+    --version) cmd_version; exit 0 ;;
+    --help|-h|"") cmd_help; exit 0 ;;
+esac
+
+# Verify binary integrity before executing any system-modifying command
+verify_integrity
+
 case "${1:-}" in
     --trigger)
         cmd_trigger
@@ -1885,12 +1927,6 @@ case "${1:-}" in
         ;;
     --uninstall)
         cmd_uninstall
-        ;;
-    --version)
-        cmd_version
-        ;;
-    --help|-h|"")
-        cmd_help
         ;;
     *)
         die "Unknown command: $1. Run 'macshield --help' for usage."

@@ -672,6 +672,7 @@ macshield prints every action it takes, including the exact commands it runs:
 - **No plaintext secrets.** SSIDs are stored as HMAC hashes in Keychain, never written to disk as cleartext.
 - **Ephemeral logs.** All output goes to `/tmp/` and is cleared on reboot. Logs never contain SSIDs.
 - **Scoped sudo.** The sudoers fragment grants NOPASSWD for exact commands only (stealth mode on/off, hostname set, NetBIOS control). You can revoke it anytime with `sudo rm /etc/sudoers.d/macshield`.
+- **Self-integrity check.** On install, macshield stores a SHA-256 hash of itself in Keychain. On every launch, it verifies the hash matches before executing. If the binary has been modified, macshield refuses to run and warns you. Re-install to store a new hash.
 - **SIP-compatible.** macshield does not modify protected system files. NetBIOS control may be limited on some macOS versions due to SIP, and macshield handles this gracefully.
 
 ## Comparison

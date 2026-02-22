@@ -122,6 +122,17 @@ else
         echo "  Skipped."
     fi
 fi
+
+# Store integrity hash in Keychain (for tamper detection on launch)
+if [[ -f "$INSTALL_PATH" ]]; then
+    SCRIPT_HASH=$(shasum -a 256 "$INSTALL_PATH" | awk '{print $1}')
+    security add-generic-password \
+        -s "com.macshield.integrity" \
+        -a "sha256" \
+        -w "$SCRIPT_HASH" \
+        -U 2>/dev/null || true
+    log "Integrity hash stored in Keychain."
+fi
 echo ""
 
 # ---------------------------------------------------------------------------
