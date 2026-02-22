@@ -1054,6 +1054,16 @@ Or run `./uninstall.sh` from the cloned repo.
 
 ## Changelog
 
+### v0.4.1
+
+**Self-integrity check.**
+
+- On install, macshield stores a SHA-256 hash of itself in macOS Keychain
+- On every launch, the hash is verified before executing any privileged commands
+- If the binary has been modified (by an attacker, a rogue process, or an update without re-running setup), macshield refuses to run and prints a clear warning with fix instructions
+- `--help` and `--version` bypass the check so they remain usable for debugging
+- `brew upgrade` triggers `post_install` which re-runs setup, so the hash updates automatically
+
 ### v0.4.0
 
 **Free VPN options. Full-stack protection for students on public WiFi.**
