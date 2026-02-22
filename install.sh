@@ -89,6 +89,7 @@ echo "     prompt on every network change. No wildcards, exact commands only."
 echo "  3. Install a LaunchAgent that triggers on network changes"
 echo "     The agent runs as YOUR user, not root."
 echo "  4. Optionally add your current network as trusted"
+echo "  5. Optionally install Cloudflare WARP (free VPN, covers Layer 3+)"
 echo ""
 echo "Each step requires your explicit approval."
 echo ""
@@ -447,6 +448,93 @@ case "$PROXY_CHOICE" in
         ;;
     *)
         echo "  Skipping proxy setup. No changes."
+        ;;
+esac
+echo ""
+
+# ---------------------------------------------------------------------------
+# Step 8: Cloudflare WARP (optional free VPN)
+# ---------------------------------------------------------------------------
+
+echo -e "${C_BOLD_WHITE}Step 8: Install Cloudflare WARP? (optional, free VPN)${C_RESET}"
+echo ""
+echo -e "  ${C_YELLOW}macshield secures your local network identity (Layer 2).${C_RESET}"
+echo -e "  ${C_YELLOW}WARP encrypts your traffic and DNS (Layer 3+).${C_RESET}"
+echo -e "  ${C_YELLOW}Together they cover both layers.${C_RESET}"
+echo ""
+echo "  Cloudflare WARP is a free VPN that:"
+echo "    - Encrypts all DNS queries (DNS-over-HTTPS)"
+echo "    - Routes traffic through Cloudflare's network (WireGuard-based)"
+echo "    - No bandwidth caps, no ads, no data selling"
+echo "    - Optional paid tier (WARP+) for faster routing"
+echo ""
+echo "  WARP runs as a menu bar app. You toggle it on/off yourself."
+echo "  macshield does not manage WARP. They are independent tools."
+echo ""
+echo "  Options:"
+echo -e "    1) Install WARP via Homebrew   ${C_GREEN}(recommended)${C_RESET}"
+echo "    2) Skip (install manually later from https://1.1.1.1)"
+echo ""
+
+WARP_CHOICE=""
+printf "  Choose [1/2]: "
+read -r WARP_CHOICE
+
+case "$WARP_CHOICE" in
+    1)
+        echo ""
+        if command -v brew &>/dev/null; then
+            echo "  Installing Cloudflare WARP..."
+            echo "  Running: brew install --cask cloudflare-warp"
+            echo ""
+            if ask "  Proceed?"; then
+                if brew install --cask cloudflare-warp 2>/dev/null; then
+                    log "Cloudflare WARP installed."
+                    echo ""
+                    echo "  Open WARP from your Applications folder or menu bar."
+                    echo "  On first launch, accept the terms and click Connect."
+                    echo ""
+                    echo -e "  ${C_BOLD_WHITE}Enable malware blocking? (recommended)${C_RESET}"
+                    echo "  This sets WARP to use 1.1.1.2 (blocks known malware domains)"
+                    echo "  instead of 1.1.1.1 (no filtering)."
+                    echo "  Running: warp-cli dns families malware"
+                    echo ""
+                    if ask "  Enable malware blocking?"; then
+                        if command -v warp-cli &>/dev/null; then
+                            if warp-cli dns families malware 2>/dev/null; then
+                                log "WARP malware blocking enabled (DNS: 1.1.1.2)."
+                            else
+                                echo "  Could not set malware blocking. Open WARP first, then run:"
+                                echo "    warp-cli dns families malware"
+                            fi
+                        else
+                            echo "  warp-cli not found yet. Open WARP once, then run:"
+                            echo "    warp-cli dns families malware"
+                        fi
+                    else
+                        echo "  Skipped. You can enable it later:"
+                        echo "    warp-cli dns families malware"
+                    fi
+                    echo ""
+                    echo "  WARP runs independently from macshield."
+                else
+                    echo "  Installation failed. You can install manually:"
+                    echo "    brew install --cask cloudflare-warp"
+                    echo "  Or download from: https://1.1.1.1"
+                fi
+            else
+                echo "  Skipped."
+            fi
+        else
+            echo "  Homebrew not found. Install WARP manually:"
+            echo "    https://1.1.1.1"
+            echo "  Or install Homebrew first: https://brew.sh"
+        fi
+        ;;
+    *)
+        echo "  Skipping WARP. You can install it later:"
+        echo "    brew install --cask cloudflare-warp"
+        echo "    Or download from: https://1.1.1.1"
         ;;
 esac
 echo ""

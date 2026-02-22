@@ -123,12 +123,12 @@ These terms get thrown around together but they do completely different things. 
 
 ```
 Layer 4 - VPN          Encrypts all traffic, hides your IP from websites
-Layer 3 - Proxy        Routes traffic through intermediary (optional)
+Layer 3 - WARP/Proxy   Routes traffic through encrypted tunnel (optional)
 Layer 2 - DNS          Controls who resolves your domain lookups
 Layer 1 - macshield    Secures your identity on the local network (L2)
 ```
 
-Each layer protects something different. Using a VPN without macshield still broadcasts your hostname to everyone on the local WiFi. Using macshield without a VPN still exposes your traffic to your ISP. They are complementary, not interchangeable.
+Each layer protects something different. Using a VPN without macshield still broadcasts your hostname to everyone on the local WiFi. Using macshield without a VPN still exposes your traffic to your ISP. They are complementary, not interchangeable. The macshield installer optionally installs Cloudflare WARP (a free VPN) to cover Layers 3-4 alongside macshield's Layer 2 protection.
 
 In OSI terms, VPNs operate at Layer 3+ (Network and above). In the [QIF security model](https://github.com/qinnovates/qinnovate/blob/main/qif-framework/QIF-TRUTH.md), VPNs operate at the **S3 band** (Application). The attacks macshield blocks happen at the **S1 band** (Analog Front-End), below the VPN tunnel. In BCI systems, compromising S1 can propagate upward through S2, S3, through I0 (the neural interface), and into the neural domain. macshield defends the silicon domain floor.
 
@@ -149,7 +149,7 @@ After install, run the interactive setup:
 macshield setup
 ```
 
-The setup walks you through 7 steps with explicit yes/no consent at each:
+The setup walks you through 8 steps with explicit yes/no consent at each:
 
 1. **Binary install** (skipped if Homebrew already installed it)
 2. **Sudoers authorization** for exact privileged commands (stealth mode, hostname, NetBIOS)
@@ -158,6 +158,7 @@ The setup walks you through 7 steps with explicit yes/no consent at each:
 5. **Hostname consent** with warning about what changes and how restoration works
 6. **DNS configuration** (optional): Quad9 (recommended, blocks malware), Cloudflare, Mullvad, or keep current
 7. **SOCKS proxy** (optional): SSH tunnel, custom, or skip. If you don't know what a SOCKS proxy is, skip this step.
+8. **Cloudflare WARP** (optional): Free VPN that encrypts your traffic and DNS. Covers Layer 3+ where macshield covers Layer 2. Installed via Homebrew.
 
 ### DNS providers
 
@@ -173,6 +174,53 @@ Quad9 is listed first because it actively blocks known malware domains at the DN
 
 All three are significant improvements over your ISP's default DNS, which typically logs your browsing history.
 
+### Cloudflare WARP (optional free VPN)
+
+The installer optionally installs [Cloudflare WARP](https://1.1.1.1), a free WireGuard-based VPN that encrypts your traffic and DNS queries. macshield covers Layer 2 (local network identity). WARP covers Layer 3+ (traffic encryption). Together they give you both layers of protection for free.
+
+| Feature | Free (WARP) | Paid (WARP+) |
+|---------|-------------|--------------|
+| DNS encryption (DoH) | Yes | Yes |
+| Traffic encryption (WireGuard) | Yes | Yes |
+| Bandwidth cap | None | None |
+| Faster routing (Argo) | No | Yes |
+| Price | Free | ~$5/month |
+
+WARP runs as a menu bar app. You toggle it on/off yourself. macshield does not manage or interact with WARP in any way. They are independent tools that complement each other.
+
+**Install manually (if you skipped during setup):**
+
+```bash
+brew install --cask cloudflare-warp
+```
+
+Or download from [https://1.1.1.1](https://1.1.1.1).
+
+**Note:** When WARP is connected, it handles DNS through its own encrypted tunnel, bypassing whatever you set in Step 6. Your Step 6 DNS choice still applies when WARP is disconnected.
+
+**Malware blocking:**
+
+By default WARP uses 1.1.1.1 (no filtering). The macshield installer offers to enable malware blocking automatically. If you skipped it or want to change it later, use `warp-cli`:
+
+```bash
+# Block known malware domains (recommended)
+warp-cli dns families malware
+
+# Block malware + adult content
+warp-cli dns families full
+
+# Disable filtering (default)
+warp-cli dns families off
+```
+
+| Profile | DNS | What it blocks |
+|---------|-----|----------------|
+| Default | 1.1.1.1 | Nothing (privacy only) |
+| Malware | 1.1.1.2 | Known malware domains |
+| Family | 1.1.1.3 | Malware + adult content |
+
+The installer runs `warp-cli dns families malware` to set 1.1.1.2. This gives you encrypted DNS with malware blocking through Cloudflare's network, similar to Quad9 but tunneled through WARP's WireGuard connection.
+
 ### Manual install
 
 ```bash
@@ -182,7 +230,7 @@ chmod +x install.sh macshield.sh
 ./install.sh
 ```
 
-The installer walks through the same 7 interactive steps described above.
+The installer walks through the same 8 interactive steps described above.
 
 ## Verify it works
 
