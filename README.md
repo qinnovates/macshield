@@ -1110,8 +1110,9 @@ A native macOS menu bar app is in development. The app will give you a shield ic
 - Trust / untrust current network
 - Run security reports (scan, audit, connections, persistence, permissions) from a dropdown
 - Configure self-destruct timers on reports
+- Switch DNS provider on the fly (Quad9, Cloudflare, Mullvad, ISP default) with one click
+- Shows which DNS is active right now (system DNS vs VPN DNS)
 - VPN status indicator (WARP / ProtonVPN connected or not)
-- DNS provider display (which DNS is active right now)
 - Quick link to `macshield setup` for full reconfiguration
 
 The app will be a lightweight Swift wrapper around the existing bash CLI. No new dependencies, no telemetry, no network calls. Same pure-bash engine underneath.
