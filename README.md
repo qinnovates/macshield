@@ -209,6 +209,10 @@ When a VPN is connected, it handles DNS through its own tunnel, bypassing whatev
 
 The installer is context-aware: if you pick ProtonVPN, it recommends Quad9 in Step 7 so you have malware-blocking DNS at least when ProtonVPN is off.
 
+**Custom DNS + VPN = two vendors:**
+
+You can use `macshield setup` to set a custom DNS (Quad9, Cloudflare, Mullvad) independently of your VPN. This is useful when your VPN's built-in DNS does not offer malware blocking (ProtonVPN free tier). However, be aware that setting a separate DNS provider introduces a second vendor to your data flow: the VPN provider sees your traffic, and the DNS provider sees your domain lookups when the VPN is disconnected. This is still better than your ISP seeing both, but it is two trust relationships instead of one. If you want a single vendor handling everything, use WARP (Cloudflare handles both VPN and DNS) or upgrade to ProtonVPN Plus (Proton handles both with NetShield malware filtering).
+
 **WARP malware blocking:**
 
 The installer automatically configures malware blocking after installing WARP. If you skipped it or want to change it later:

@@ -479,6 +479,10 @@ elif [[ "$VPN_NAME" == "ProtonVPN" ]]; then
     echo "  This step sets your DNS for when ProtonVPN is disconnected."
     echo -e "  ${C_GREEN}We recommend Quad9 for malware blocking.${C_RESET}"
     echo ""
+    echo -e "  ${C_DIM}Note: Setting a separate DNS introduces a second vendor to your data"
+    echo -e "  flow. Proton sees your traffic; the DNS provider sees your domain lookups"
+    echo -e "  when ProtonVPN is off. This is still better than your ISP seeing both.${C_RESET}"
+    echo ""
 else
     echo "  Changing DNS is one of the simplest privacy improvements you can make."
     echo "  This sets your DNS on the WiFi interface to a privacy-focused provider."
