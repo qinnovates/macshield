@@ -794,18 +794,19 @@ cmd_scan() {
         log "  - No data leaves your machine. Ever."
         echo ""
         log "${C_BOLD}What happens to the results:${C_RESET}"
-        log "  The scan results are displayed to your terminal and then WIPED."
-        log "  Nothing is saved to disk unless you explicitly choose to save."
-        log "  If you save, you choose when it auto-deletes (default: 5 minutes)."
+        log "  Results are displayed to your terminal and never saved to disk."
+        log "  Once you close or scroll past the output, they are gone."
+        log "  No files are created. No traces are left."
         echo ""
         log_dim "  For scripting or non-interactive use:"
         log_dim "    macshield scan --purge 5m   Save report, auto-delete after 5 minutes"
-        log_dim "    macshield scan --purge 1h   Save report, auto-delete after 1 hour"
         log_dim "    macshield scan --quiet      Scan without prompts, display only"
         echo ""
         log_dim "Security note:"
-        log_dim "  This script contains zero network operations (no curl, wget, nc,"
-        log_dim "  or socket calls). You can verify: grep -n 'curl\|wget\|nc ' macshield.sh"
+        log_dim "  This scan reads local system state only (lsof, socketfilterfw)."
+        log_dim "  It sends zero packets to the network. Safe on any WiFi, including"
+        log_dim "  public networks. No admin can detect it because nothing leaves"
+        log_dim "  your machine. Verify: grep -n 'curl\|wget\|nc ' macshield.sh"
         echo ""
 
         if ! ask "Proceed with port scan?"; then
@@ -978,58 +979,8 @@ cmd_scan() {
     # Display the report
     echo "$report"
 
-    # --- Interactive: save or purge ---
-    if [[ "$quiet" != "--quiet" && -z "$auto_purge" ]]; then
-        echo ""
-        log "The report above was displayed to your terminal only."
-        log "Nothing has been written to disk. This is the most secure default."
-        log ""
-        log "If you need to keep a copy, you can save it now. The saved file"
-        log "will auto-delete at a time you choose (default: 5 minutes)."
-        log "To skip saving entirely, just press Enter or type 'n'."
-        echo ""
-
-        if ask "Save the report to disk? ($SCAN_REPORT, owner-read-only)"; then
-            safe_write "$SCAN_REPORT" "$report"
-            chmod 600 "$SCAN_REPORT"
-            log "Report saved to $SCAN_REPORT (permissions: 600, owner-read-only)"
-            log ""
-
-            # Ask how long to keep it
-            local reply
-            printf "[macshield] Auto-delete after how long? [5m / 1h / keep]: "
-            read -r reply
-
-            case "$reply" in
-                keep)
-                    log "Report will persist until you run 'macshield purge'."
-                    ;;
-                ""|5m)
-                    log "Report will auto-delete in 5 minutes."
-                    ( sleep 300; rm -f "$SCAN_REPORT" ) &
-                    disown
-                    ;;
-                *)
-                    local seconds=0
-                    if [[ "$reply" =~ ^([0-9]+)h$ ]]; then
-                        seconds=$(( ${BASH_REMATCH[1]} * 3600 ))
-                    elif [[ "$reply" =~ ^([0-9]+)m$ ]]; then
-                        seconds=$(( ${BASH_REMATCH[1]} * 60 ))
-                    elif [[ "$reply" =~ ^([0-9]+)s$ ]]; then
-                        seconds=${BASH_REMATCH[1]}
-                    else
-                        log "Unrecognized duration. Defaulting to 5 minutes."
-                        seconds=300
-                    fi
-                    log "Report will auto-delete in $reply."
-                    ( sleep "$seconds"; rm -f "$SCAN_REPORT" ) &
-                    disown
-                    ;;
-            esac
-        else
-            log "Report not saved. No trace on disk."
-        fi
-    elif [[ -n "$auto_purge" ]]; then
+    # --- Save to disk only with explicit --purge flag (always auto-deletes) ---
+    if [[ -n "$auto_purge" ]]; then
         # Non-interactive with explicit purge duration
         safe_write "$SCAN_REPORT" "$report"
         chmod 600 "$SCAN_REPORT"
@@ -1802,8 +1753,8 @@ Usage:
   macshield harden           Manually harden now
   macshield relax            Manually relax (re-applies on next network change)
   macshield relax --for 2h   Temporarily relax for a duration (2h, 30m, 300s)
-  macshield scan             Scan open ports and generate a local report
-  macshield scan --purge 5m  Scan and auto-delete the report after a duration
+  macshield scan             Scan open ports (display only, nothing saved to disk)
+  macshield scan --purge 5m  Scan, save report to disk, auto-delete after duration
   macshield purge            Delete all macshield logs, reports, and temp files
 
 Optional security commands (not run by default):

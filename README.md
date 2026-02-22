@@ -322,8 +322,8 @@ macshield harden           Manually harden now
 macshield relax            Manually relax (re-applies on next network change)
 macshield relax --for 2h   Temporarily relax for a duration (2h, 30m, 300s)
 macshield scan             Scan open ports (display only, nothing saved to disk)
-macshield scan --purge 5m  Scan, save report, auto-delete after a duration
-macshield scan --quiet     Scan without prompts (display only, no save option)
+macshield scan --purge 5m  Scan, save report to disk, auto-delete after duration
+macshield scan --quiet     Scan without prompts (display only, no save)
 macshield purge            Delete all macshield logs, reports, and temp files
 macshield audit            System security posture check (read-only)
 macshield connections      Show active TCP connections
@@ -354,9 +354,9 @@ macshield --help           Print help
 [macshield]   - No data leaves your machine. Ever.
 
 [macshield] What happens to the results:
-[macshield]   The scan results are displayed to your terminal and then WIPED.
-[macshield]   Nothing is saved to disk unless you explicitly choose to save.
-[macshield]   If you save, you choose when it auto-deletes (default: 5 minutes).
+[macshield]   Results are displayed to your terminal and never saved to disk.
+[macshield]   Once you close or scroll past the output, they are gone.
+[macshield]   No files are created. No traces are left.
 
 [macshield] Proceed with port scan? [y/N]:
 ```
@@ -369,13 +369,13 @@ If you type anything other than `y`, the scan does not run.
 
 **Risks:** None from the scan itself. The only risk is if you act on the results without understanding what a service does. For example, closing port 5353 disables Bonjour/mDNS, which breaks AirDrop and local device discovery. The report labels known system ports so you can make informed decisions before changing anything.
 
-### Default behavior (display only, nothing saved)
+### Default behavior (display only, nothing saved to disk)
 
 ```bash
 macshield scan
 ```
 
-The scan displays results to your terminal and then asks if you want to save. If you say no (or just press Enter), nothing is written to disk. This is the most secure default.
+Reports are **never saved to disk** by default. The scan displays results to your terminal and that's it. No files are created, no traces are left. This is the security-first default.
 
 Example output:
 
@@ -424,35 +424,25 @@ Example output:
 ================================================================
 ```
 
-### Auto-delete reports
+### Saving reports (scripting only, always self-destructs)
 
-If you choose to save the report, macshield asks how long to keep it. The report auto-deletes after your chosen duration:
+If you need a temporary file for scripting or automation, use the `--purge` flag. The report is saved to disk and **always auto-deletes** after the duration you specify. There is no option to keep reports permanently.
 
-```
-[macshield] Save the report to disk? (/tmp/macshield-port-report.txt, owner-read-only) [y/N]: y
-[macshield] Report saved to /tmp/macshield-port-report.txt (permissions: 600, owner-read-only)
-[macshield] Auto-delete after how long? [5m / 1h / keep]: 5m
-[macshield] Report will auto-delete in 5 minutes.
+```bash
+macshield scan --purge 5m    # Save report, auto-delete after 5 minutes
+macshield scan --purge 30m   # Save report, auto-delete after 30 minutes
 ```
 
-Options:
-- **5m** (default): Deletes after 5 minutes
-- **1h**, **30m**, **300s**: Any duration in hours, minutes, or seconds
-- **keep**: Persists until you run `macshield purge`
-
-The saved report is at `/tmp/macshield-port-report.txt` with `600` permissions (owner-read only). It is never sent over the network.
+The saved report is at `/tmp/macshield-port-report.txt` with `600` permissions (owner-read only). It is never sent over the network. It self-destructs after your chosen duration.
 
 ### Scripting / non-interactive modes
 
 ```bash
+# Display only, no prompts, no save
+macshield scan --quiet
+
 # Save report, auto-delete after 5 minutes (no prompts)
 macshield scan --purge 5m
-
-# Save report, auto-delete after 1 hour
-macshield scan --purge 1h
-
-# Display only, no prompts, no save option
-macshield scan --quiet
 ```
 
 ### Manual cleanup
@@ -466,9 +456,13 @@ macshield purge
 
 **Be careful closing ports.** Some ports are required for system features (AirDrop, printing, iCloud sync, screen sharing). The report labels known system ports so you can make informed decisions. Ports marked `** REVIEW **` are worth investigating but may be legitimate (dev servers, Docker, Spotify, etc.).
 
-### Zero network calls
+### Safe on any network (zero network calls)
 
-macshield's scan uses only `lsof` (local system state) and `socketfilterfw` (firewall status). No data leaves your machine. You can verify this yourself:
+**You can run `macshield scan` on any network, including public WiFi, without risk of alerting network administrators.** The scan uses only `lsof` (reads your own machine's kernel state) and `socketfilterfw` (checks local firewall status). It sends zero packets to the network. No ARP requests, no SYN probes, no ICMP, no DNS lookups. There is nothing for a network monitor to detect because nothing leaves your machine.
+
+This is fundamentally different from network scanners like `nmap` or `masscan`, which send packets to remote hosts and can trigger intrusion detection systems. `macshield scan` never touches the network.
+
+You can verify this yourself:
 
 ```bash
 grep -n 'curl\|wget\|nc ' $(which macshield)
