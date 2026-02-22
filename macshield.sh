@@ -12,7 +12,7 @@ export PATH
 # Restrict file creation permissions (owner-only by default)
 umask 077
 
-VERSION="0.4.0"
+VERSION="0.4.1"
 KEYCHAIN_SERVICE="com.macshield.trusted"
 KEYCHAIN_HOSTNAME="com.macshield.hostname"
 STATE_FILE="/tmp/macshield.state"
