@@ -27,6 +27,7 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 - [Threat model](#threat-model)
 - [Understanding DNS, VPNs, proxies, and where macshield fits](#understanding-dns-vpns-proxies-and-where-macshield-fits)
 - [Install](#install)
+- [Free VPN: Cloudflare WARP vs ProtonVPN](#free-vpn-cloudflare-warp-vs-protonvpn)
 - [Verify it works](#verify-it-works)
 - [How it works](#how-it-works)
 - [Commands](#commands)
@@ -156,9 +157,9 @@ The setup walks you through 8 steps with explicit yes/no consent at each:
 3. **LaunchAgent** that auto-triggers on WiFi changes (runs as your user, not root)
 4. **Trust current network** (optional)
 5. **Hostname consent** with warning about what changes and how restoration works
-6. **DNS configuration** (optional): Quad9 (recommended, blocks malware), Cloudflare, Mullvad, or keep current
-7. **SOCKS proxy** (optional): SSH tunnel, custom, or skip. If you don't know what a SOCKS proxy is, skip this step.
-8. **Cloudflare WARP** (optional): Free VPN that encrypts your traffic and DNS. Covers Layer 3+ where macshield covers Layer 2. Installed via Homebrew.
+6. **Free VPN** (optional): Cloudflare WARP (best for security) or ProtonVPN (best for privacy). See [VPN comparison](#free-vpn-cloudflare-warp-vs-protonvpn) below.
+7. **DNS configuration** (optional, context-aware): adapts based on your VPN choice. Recommends Quad9 if you picked ProtonVPN (free tier has no malware blocking).
+8. **SOCKS proxy** (optional): SSH tunnel, custom, or skip. If you don't know what a SOCKS proxy is, skip this step.
 
 ### DNS providers
 
@@ -174,33 +175,42 @@ Quad9 is listed first because it actively blocks known malware domains at the DN
 
 All three are significant improvements over your ISP's default DNS, which typically logs your browsing history.
 
-### Cloudflare WARP (optional free VPN)
+### Free VPN: Cloudflare WARP vs ProtonVPN
 
-The installer optionally installs [Cloudflare WARP](https://1.1.1.1), a free WireGuard-based VPN that encrypts your traffic and DNS queries. macshield covers Layer 2 (local network identity). WARP covers Layer 3+ (traffic encryption). Together they give you both layers of protection for free.
+macshield covers Layer 2 (local network identity). A VPN covers Layer 3+ (traffic encryption). Together they give you both layers of protection for free. The installer offers two options:
 
-| Feature | Free (WARP) | Paid (WARP+) |
-|---------|-------------|--------------|
-| DNS encryption (DoH) | Yes | Yes |
-| Traffic encryption (WireGuard) | Yes | Yes |
-| Bandwidth cap | None | None |
-| Faster routing (Argo) | No | Yes |
-| Price | Free | ~$5/month |
+| | Cloudflare WARP | ProtonVPN Free |
+|---|---|---|
+| **Best for** | **Security** | **Privacy** |
+| **Jurisdiction** | United States (Cloudflare Inc.) | Switzerland (Proton AG) |
+| **Speed** | Fastest (300+ global edge nodes) | Good (5 free server locations) |
+| **Malware-blocking DNS** | Free (1.1.1.2) | Paid only (NetShield) |
+| **Bandwidth cap** | None | None |
+| **Open-source client** | No | Yes (independently audited) |
+| **Device limit** | None | 1 on free tier |
+| **No-logs verification** | Metadata deleted in 24h | Court-tested: subpoenaed in 2019, had nothing to hand over |
+| **Protocol** | WireGuard | WireGuard (Stealth) |
+| **Independent audits** | 4 annual audits (Securitum) | 4 annual audits (Securitum) |
+| **Install** | `brew install --cask cloudflare-warp` | `brew install --cask protonvpn` |
+| **Download** | [https://1.1.1.1](https://1.1.1.1) | [https://protonvpn.com](https://protonvpn.com/download) |
 
-WARP runs as a menu bar app. You toggle it on/off yourself. macshield does not manage or interact with WARP in any way. They are independent tools that complement each other.
+**WARP** is the better choice if you want the fastest connection with built-in malware blocking at no cost. **ProtonVPN** is the better choice if jurisdiction matters to you (Swiss privacy law) and you want an open-source, court-proven no-logs client.
 
-**Install manually (if you skipped during setup):**
+Both run as menu bar apps. You toggle them on/off yourself. macshield does not manage or interact with either VPN. They are independent tools.
 
-```bash
-brew install --cask cloudflare-warp
-```
+**DNS behavior with each VPN:**
 
-Or download from [https://1.1.1.1](https://1.1.1.1).
+When a VPN is connected, it handles DNS through its own tunnel, bypassing whatever system DNS you set in Step 7. Your Step 7 DNS choice kicks back in automatically whenever you disconnect the VPN.
 
-**Note:** When WARP is connected, it handles DNS through its own encrypted tunnel, bypassing whatever you set in Step 6. Your Step 6 DNS choice still applies when WARP is disconnected.
+- **WARP connected:** DNS goes through Cloudflare (1.1.1.2 with malware blocking if enabled, 1.1.1.1 without)
+- **ProtonVPN connected (free):** DNS goes through Proton's servers, no malware blocking
+- **VPN disconnected:** Your Step 7 DNS choice applies (Quad9, Cloudflare, Mullvad, or ISP default)
 
-**Malware blocking:**
+The installer is context-aware: if you pick ProtonVPN, it recommends Quad9 in Step 7 so you have malware-blocking DNS at least when ProtonVPN is off.
 
-By default WARP uses 1.1.1.1 (no filtering). The macshield installer offers to enable malware blocking automatically. If you skipped it or want to change it later, use `warp-cli`:
+**WARP malware blocking:**
+
+The installer automatically configures malware blocking after installing WARP. If you skipped it or want to change it later:
 
 ```bash
 # Block known malware domains (recommended)
@@ -218,8 +228,6 @@ warp-cli dns families off
 | Default | 1.1.1.1 | Nothing (privacy only) |
 | Malware | 1.1.1.2 | Known malware domains |
 | Family | 1.1.1.3 | Malware + adult content |
-
-The installer runs `warp-cli dns families malware` to set 1.1.1.2. This gives you encrypted DNS with malware blocking through Cloudflare's network, similar to Quad9 but tunneled through WARP's WireGuard connection.
 
 ### Manual install
 
@@ -1046,15 +1054,23 @@ Or run `./uninstall.sh` from the cloned repo.
 
 ### v0.4.0
 
-**Cloudflare WARP integration. Full-stack protection for students on public WiFi.**
+**Free VPN options. Full-stack protection for students on public WiFi.**
 
-macshield has always secured your local network identity (Layer 2). For the sake of protecting other layers, the installer now offers [Cloudflare WARP](https://1.1.1.1), a free VPN that encrypts your traffic and DNS (Layer 3+). The installer automatically applies Cloudflare's malware-blocking DNS (1.1.1.2) so known malicious domains are blocked out of the box. If you want extra privacy, WARP routes all traffic through Cloudflare's WireGuard-based network at no cost.
+macshield has always secured your local network identity (Layer 2). For the sake of protecting other layers, the installer now offers two free VPNs that encrypt your traffic and DNS (Layer 3+):
 
-Together, macshield + WARP offers adequate protection with minimum requirements for students looking to stay secure in cafes, libraries, and campus WiFi. You can use `macshield setup` to toggle other DNS configurations and proxy settings, and run security reports for hardening. Reports can be set to self-destruct after a configurable duration.
+- **Cloudflare WARP** (best for security): fastest (300+ edge nodes), free malware-blocking DNS (1.1.1.2), US-based
+- **ProtonVPN** (best for privacy): Swiss jurisdiction, open-source client, court-tested no-logs (subpoenaed in 2019, had nothing to hand over)
 
-- Added Cloudflare WARP as optional Step 8 in installer (free VPN, Homebrew install)
-- Installer auto-configures malware blocking via `warp-cli dns families malware` (DNS 1.1.1.2)
-- Updated layer diagram: macshield (Layer 2) + WARP (Layer 3+)
+The installer automatically applies malware-blocking DNS when you pick WARP. If you pick ProtonVPN (free tier has no malware blocking), the installer recommends Quad9 DNS so you still have malware protection when ProtonVPN is disconnected. If you want extra privacy, both VPNs route all traffic through encrypted WireGuard tunnels at no cost.
+
+Together, macshield + a free VPN offers adequate protection with minimum requirements for students looking to stay secure in cafes, libraries, and campus WiFi. You can use `macshield setup` to toggle DNS configuration and proxy settings, and run security reports for hardening. Reports can be set to self-destruct after a configurable duration.
+
+- Added free VPN step with side-by-side WARP vs ProtonVPN comparison in installer
+- WARP: auto-configures malware blocking via `warp-cli dns families malware` (DNS 1.1.1.2)
+- ProtonVPN: installer warns about free tier DNS limitation, prompts for Quad9
+- Reordered installer steps: VPN (Step 6) before DNS (Step 7) before SOCKS proxy (Step 8)
+- DNS step is now context-aware (adapts messaging based on VPN choice)
+- Updated layer diagram and README with full VPN comparison table
 - Documented `warp-cli` commands for malware/family DNS profiles
 
 ### v0.3.0

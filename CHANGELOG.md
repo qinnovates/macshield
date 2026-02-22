@@ -7,15 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.4.0] - 2026-02-22
 
 ### Added
-- **Cloudflare WARP integration (Step 8).** Installer now offers to install Cloudflare WARP, a free WireGuard-based VPN that encrypts traffic and DNS (Layer 3+). Installed via Homebrew (`brew install --cask cloudflare-warp`). macshield covers Layer 2, WARP covers Layer 3+. Together they provide adequate protection with minimum requirements for students on public WiFi.
-- **Automatic malware-blocking DNS.** After WARP install, the installer runs `warp-cli dns families malware` to set DNS to 1.1.1.2, which blocks known malicious domains out of the box. No manual configuration needed.
-- **WARP documentation in README.** Feature comparison table (free vs WARP+), `warp-cli` commands for malware/family DNS profiles, DNS override behavior, and install instructions.
-- **Updated layer diagram.** Shows WARP at Layer 3 alongside macshield at Layer 1.
+- **Free VPN step (Step 6) with WARP vs ProtonVPN comparison.** Side-by-side table in installer comparing Cloudflare WARP (best for security: fastest, free malware-blocking DNS, US-based) vs ProtonVPN Free (best for privacy: Swiss jurisdiction, open-source, court-tested no-logs). Both installed via Homebrew.
+- **Automatic malware-blocking DNS for WARP.** After WARP install, the installer runs `warp-cli dns families malware` to set DNS to 1.1.1.2, blocking known malicious domains out of the box.
+- **Context-aware DNS step (Step 7).** DNS configuration now adapts based on VPN choice: explains WARP DNS override behavior, recommends Quad9 for ProtonVPN users (free tier has no malware-blocking DNS), shows when system DNS applies vs VPN DNS.
+- **ProtonVPN free tier DNS warning.** Installer explicitly warns that ProtonVPN free does not include malware-blocking DNS (NetShield requires paid plan) and nudges toward Quad9.
+- **Full VPN comparison in README.** Jurisdiction, speed, malware blocking, open-source status, device limits, audit history, install commands, DNS behavior per VPN.
 
 ### Changed
 - Version bumped to 0.4.0.
-- Installer intro now mentions 8 steps (was 7).
-- README changelog updated with student-focused messaging: macshield + WARP = adequate cafe/campus WiFi protection at zero cost, with `macshield setup` to toggle DNS, proxy, and run self-destructing security reports.
+- **Reordered installer steps:** VPN (Step 6) before DNS (Step 7) before SOCKS proxy (Step 8). DNS depends on VPN choice, proxy is most advanced and comes last.
+- README changelog updated with student-focused messaging: macshield + free VPN = adequate cafe/campus protection at zero cost.
 
 ## [0.3.0] - 2026-02-21
 

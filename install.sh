@@ -89,7 +89,10 @@ echo "     prompt on every network change. No wildcards, exact commands only."
 echo "  3. Install a LaunchAgent that triggers on network changes"
 echo "     The agent runs as YOUR user, not root."
 echo "  4. Optionally add your current network as trusted"
-echo "  5. Optionally install Cloudflare WARP (free VPN, covers Layer 3+)"
+echo "  5. Store your hostname for restoration on trusted networks"
+echo "  6. Optionally install a free VPN (WARP for security, ProtonVPN for privacy)"
+echo "  7. Configure secure DNS (adapts based on your VPN choice)"
+echo "  8. Configure SOCKS proxy (advanced, skip if unsure)"
 echo ""
 echo "Each step requires your explicit approval."
 echo ""
@@ -304,18 +307,173 @@ if [[ -n "$CURRENT_HOSTNAME" && "$CURRENT_HOSTNAME" != "$GENERIC_HOSTNAME" ]]; t
 fi
 
 # ---------------------------------------------------------------------------
-# Step 6: DNS configuration (optional)
+# Step 6: Free VPN (optional, covers Layer 3+)
 # ---------------------------------------------------------------------------
 
-echo -e "${C_BOLD_WHITE}Step 6: Configure secure DNS? (optional)${C_RESET}"
+VPN_NAME=""
+DNS_NAME=""
+
+echo -e "${C_BOLD_WHITE}Step 6: Install a free VPN? (optional)${C_RESET}"
+echo ""
+echo -e "  ${C_YELLOW}macshield secures your local network identity (Layer 2).${C_RESET}"
+echo -e "  ${C_YELLOW}A VPN encrypts your traffic and DNS (Layer 3+).${C_RESET}"
+echo -e "  ${C_YELLOW}Together they cover both layers.${C_RESET}"
+echo ""
+echo "  Both options below are free, reputable, and use WireGuard."
+echo "  They run as menu bar apps. You toggle them on/off yourself."
+echo "  macshield does not manage either VPN. They are independent tools."
+echo ""
+echo -e "  ${C_BOLD_WHITE}Comparison:${C_RESET}"
+echo ""
+echo "    Cloudflare WARP (Security)              ProtonVPN Free (Privacy)"
+echo "    ─────────────────────────────────────    ─────────────────────────────────────"
+echo "    US-based (Cloudflare Inc.)               Swiss-based (Proton AG)"
+echo "    Fastest (300+ global edge nodes)         Good (5 free server locations)"
+echo "    Free malware-blocking DNS (1.1.1.2)      No malware blocking on free tier"
+echo "    No bandwidth caps                        No bandwidth caps"
+echo "    Closed-source client                     Open-source client (audited)"
+echo "    No device or server limits               1 device, 5 countries on free"
+echo "    Metadata deleted in 24h                  No logs, proven in court (2019)"
+echo "    4 annual audits (Securitum)              4 annual audits (Securitum)"
+echo ""
+echo "  Options:"
+echo -e "    1) Cloudflare WARP   ${C_GREEN}(best for security)${C_RESET} - fastest, free malware-blocking DNS, US"
+echo "    2) ProtonVPN Free   (best for privacy) - Swiss jurisdiction, open-source, no-logs"
+echo "    3) Skip"
+echo ""
+
+VPN_CHOICE=""
+printf "  Choose [1/2/3]: "
+read -r VPN_CHOICE
+
+case "$VPN_CHOICE" in
+    1)
+        # --- Cloudflare WARP ---
+        VPN_NAME="WARP"
+        echo ""
+        if command -v brew &>/dev/null; then
+            echo "  Installing Cloudflare WARP..."
+            echo "  Running: brew install --cask cloudflare-warp"
+            echo ""
+            if ask "  Proceed?"; then
+                if brew install --cask cloudflare-warp 2>/dev/null; then
+                    log "Cloudflare WARP installed."
+                    echo ""
+                    echo "  Open WARP from your Applications folder or menu bar."
+                    echo "  On first launch, accept the terms and click Connect."
+                    echo ""
+                    echo -e "  ${C_BOLD_WHITE}Enable malware blocking? (recommended)${C_RESET}"
+                    echo "  This sets WARP to use 1.1.1.2 (blocks known malware domains)"
+                    echo "  instead of 1.1.1.1 (no filtering)."
+                    echo "  Running: warp-cli dns families malware"
+                    echo ""
+                    if ask "  Enable malware blocking?"; then
+                        if command -v warp-cli &>/dev/null; then
+                            if warp-cli dns families malware 2>/dev/null; then
+                                log "WARP malware blocking enabled (DNS: 1.1.1.2)."
+                            else
+                                echo "  Could not set malware blocking. Open WARP first, then run:"
+                                echo "    warp-cli dns families malware"
+                            fi
+                        else
+                            echo "  warp-cli not found yet. Open WARP once, then run:"
+                            echo "    warp-cli dns families malware"
+                        fi
+                    else
+                        echo "  Skipped. You can enable it later:"
+                        echo "    warp-cli dns families malware"
+                    fi
+                    echo ""
+                    echo "  WARP runs independently from macshield."
+                else
+                    VPN_NAME=""
+                    echo "  Installation failed. You can install manually:"
+                    echo "    brew install --cask cloudflare-warp"
+                    echo "  Or download from: https://1.1.1.1"
+                fi
+            else
+                VPN_NAME=""
+                echo "  Skipped."
+            fi
+        else
+            VPN_NAME=""
+            echo "  Homebrew not found. Install WARP manually:"
+            echo "    https://1.1.1.1"
+            echo "  Or install Homebrew first: https://brew.sh"
+        fi
+        ;;
+    2)
+        # --- ProtonVPN ---
+        VPN_NAME="ProtonVPN"
+        echo ""
+        if command -v brew &>/dev/null; then
+            echo "  Installing ProtonVPN..."
+            echo "  Running: brew install --cask protonvpn"
+            echo ""
+            if ask "  Proceed?"; then
+                if brew install --cask protonvpn 2>/dev/null; then
+                    log "ProtonVPN installed."
+                    echo ""
+                    echo "  Open ProtonVPN from your Applications folder."
+                    echo "  Create a free Proton account and click Connect."
+                else
+                    VPN_NAME=""
+                    echo "  Installation failed. You can install manually:"
+                    echo "    brew install --cask protonvpn"
+                    echo "  Or download from: https://protonvpn.com/download"
+                fi
+            else
+                VPN_NAME=""
+                echo "  Skipped."
+            fi
+        else
+            VPN_NAME=""
+            echo "  Homebrew not found. Install ProtonVPN manually:"
+            echo "    https://protonvpn.com/download"
+            echo "  Or install Homebrew first: https://brew.sh"
+        fi
+        ;;
+    *)
+        echo "  Skipping VPN. You can install one later:"
+        echo "    brew install --cask cloudflare-warp"
+        echo "    brew install --cask protonvpn"
+        ;;
+esac
+echo ""
+
+# ---------------------------------------------------------------------------
+# Step 7: DNS configuration (context-aware based on VPN choice)
+# ---------------------------------------------------------------------------
+
+echo -e "${C_BOLD_WHITE}Step 7: Configure secure DNS? (optional)${C_RESET}"
 echo ""
 echo "  Your DNS provider can see every domain you visit. Your ISP's default"
 echo "  DNS logs your browsing history and may sell it to advertisers."
 echo ""
-echo "  Changing DNS is one of the simplest privacy improvements you can make."
-echo "  macshield can set your DNS on the WiFi interface to a privacy-focused"
-echo "  provider. This only affects DNS lookups, not your traffic content."
-echo ""
+
+if [[ "$VPN_NAME" == "WARP" ]]; then
+    echo -e "  ${C_CYAN}You installed Cloudflare WARP.${C_RESET}"
+    echo "  While WARP is connected, it handles DNS through its own encrypted"
+    echo "  tunnel (1.1.1.2 with malware blocking, or 1.1.1.1 without)."
+    echo ""
+    echo "  This step sets your DNS for when WARP is disconnected."
+    echo "  Your choice here kicks in automatically whenever you turn WARP off."
+    echo ""
+elif [[ "$VPN_NAME" == "ProtonVPN" ]]; then
+    echo -e "  ${C_YELLOW}You installed ProtonVPN.${C_RESET}"
+    echo "  ProtonVPN's free tier does NOT include malware-blocking DNS."
+    echo "  When ProtonVPN is connected, it routes DNS through Proton's own"
+    echo "  servers without filtering."
+    echo ""
+    echo "  This step sets your DNS for when ProtonVPN is disconnected."
+    echo -e "  ${C_GREEN}We recommend Quad9 for malware blocking.${C_RESET}"
+    echo ""
+else
+    echo "  Changing DNS is one of the simplest privacy improvements you can make."
+    echo "  This sets your DNS on the WiFi interface to a privacy-focused provider."
+    echo ""
+fi
+
 echo "  Options:"
 echo -e "    1) Quad9       (9.9.9.9)              - ${C_GREEN}Blocks malware domains${C_RESET}, Swiss privacy law, non-profit"
 echo "    2) Cloudflare  (1.1.1.1)              - Fastest, no logging, US-based"
@@ -324,7 +482,6 @@ echo "    4) Keep current DNS (no change)"
 echo ""
 
 DNS_CHOICE=""
-DNS_NAME=""
 printf "  Choose [1/2/3/4]: "
 read -r DNS_CHOICE
 
@@ -339,6 +496,12 @@ case "$DNS_CHOICE" in
             networksetup -setdnsservers Wi-Fi 9.9.9.9 149.112.112.112
             DNS_NAME="Quad9"
             log "DNS set to Quad9."
+            if [[ "$VPN_NAME" == "WARP" ]]; then
+                echo "  Quad9 is active when WARP is disconnected."
+                echo "  WARP's malware-blocking DNS (1.1.1.2) is active when WARP is connected."
+            elif [[ "$VPN_NAME" == "ProtonVPN" ]]; then
+                echo "  Quad9 malware blocking is active when ProtonVPN is disconnected."
+            fi
         else
             echo "  Skipped."
         fi
@@ -352,6 +515,9 @@ case "$DNS_CHOICE" in
             networksetup -setdnsservers Wi-Fi 1.1.1.1 1.0.0.1
             DNS_NAME="Cloudflare"
             log "DNS set to Cloudflare."
+            if [[ -n "$VPN_NAME" ]]; then
+                echo "  Cloudflare DNS is active when $VPN_NAME is disconnected."
+            fi
         else
             echo "  Skipped."
         fi
@@ -372,15 +538,21 @@ case "$DNS_CHOICE" in
         ;;
     *)
         echo "  Keeping current DNS. No changes."
+        if [[ "$VPN_NAME" == "ProtonVPN" ]]; then
+            echo ""
+            echo -e "  ${C_YELLOW}Reminder:${C_RESET} ProtonVPN free has no malware-blocking DNS."
+            echo "  Consider setting Quad9 later for protection when ProtonVPN is off:"
+            echo "    networksetup -setdnsservers Wi-Fi 9.9.9.9 149.112.112.112"
+        fi
         ;;
 esac
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 7: SOCKS proxy (optional)
+# Step 8: SOCKS proxy (optional)
 # ---------------------------------------------------------------------------
 
-echo -e "${C_BOLD_WHITE}Step 7: Configure SOCKS proxy? (optional)${C_RESET}"
+echo -e "${C_BOLD_WHITE}Step 8: Configure SOCKS proxy? (optional)${C_RESET}"
 echo ""
 echo -e "  ${C_YELLOW}If you don't know what a SOCKS proxy is, skip this step (option 3).${C_RESET}"
 echo -e "  ${C_YELLOW}Misconfiguring a proxy will break your internet connection.${C_RESET}"
@@ -452,101 +624,6 @@ case "$PROXY_CHOICE" in
         ;;
     *)
         echo "  Skipping proxy setup. No changes."
-        ;;
-esac
-echo ""
-
-# ---------------------------------------------------------------------------
-# Step 8: Cloudflare WARP (optional free VPN)
-# ---------------------------------------------------------------------------
-
-echo -e "${C_BOLD_WHITE}Step 8: Install Cloudflare WARP? (optional, free VPN)${C_RESET}"
-echo ""
-echo -e "  ${C_YELLOW}macshield secures your local network identity (Layer 2).${C_RESET}"
-echo -e "  ${C_YELLOW}WARP encrypts your traffic and DNS (Layer 3+).${C_RESET}"
-echo -e "  ${C_YELLOW}Together they cover both layers.${C_RESET}"
-echo ""
-echo "  Cloudflare WARP is a free VPN that:"
-echo "    - Encrypts all DNS queries (DNS-over-HTTPS)"
-echo "    - Routes traffic through Cloudflare's network (WireGuard-based)"
-echo "    - No bandwidth caps, no ads, no data selling"
-echo "    - Optional paid tier (WARP+) for faster routing"
-echo ""
-echo "  WARP runs as a menu bar app. You toggle it on/off yourself."
-echo "  macshield does not manage WARP. They are independent tools."
-echo ""
-echo "  Options:"
-echo -e "    1) Install WARP via Homebrew   ${C_GREEN}(recommended)${C_RESET}"
-echo "    2) Skip (install manually later from https://1.1.1.1)"
-echo ""
-
-WARP_CHOICE=""
-printf "  Choose [1/2]: "
-read -r WARP_CHOICE
-
-case "$WARP_CHOICE" in
-    1)
-        echo ""
-        if command -v brew &>/dev/null; then
-            echo "  Installing Cloudflare WARP..."
-            echo "  Running: brew install --cask cloudflare-warp"
-            echo ""
-            if ask "  Proceed?"; then
-                if brew install --cask cloudflare-warp 2>/dev/null; then
-                    log "Cloudflare WARP installed."
-                    echo ""
-                    echo "  Open WARP from your Applications folder or menu bar."
-                    echo "  On first launch, accept the terms and click Connect."
-                    echo ""
-                    echo -e "  ${C_BOLD_WHITE}Enable malware blocking? (recommended)${C_RESET}"
-                    echo "  This sets WARP to use 1.1.1.2 (blocks known malware domains)"
-                    echo "  instead of 1.1.1.1 (no filtering)."
-                    echo "  Running: warp-cli dns families malware"
-                    echo ""
-                    if ask "  Enable malware blocking?"; then
-                        if command -v warp-cli &>/dev/null; then
-                            if warp-cli dns families malware 2>/dev/null; then
-                                log "WARP malware blocking enabled (DNS: 1.1.1.2)."
-                            else
-                                echo "  Could not set malware blocking. Open WARP first, then run:"
-                                echo "    warp-cli dns families malware"
-                            fi
-                        else
-                            echo "  warp-cli not found yet. Open WARP once, then run:"
-                            echo "    warp-cli dns families malware"
-                        fi
-                    else
-                        echo "  Skipped. You can enable it later:"
-                        echo "    warp-cli dns families malware"
-                    fi
-                    if [[ -n "$DNS_NAME" ]]; then
-                        echo ""
-                        echo -e "  ${C_YELLOW}DNS note:${C_RESET} You set $DNS_NAME DNS in Step 6."
-                        echo "  While WARP is connected, it handles DNS through its own"
-                        echo "  encrypted tunnel (1.1.1.2 with malware blocking, or 1.1.1.1"
-                        echo "  without). Your $DNS_NAME setting is not lost. It kicks back"
-                        echo "  in automatically whenever you disconnect WARP."
-                    fi
-                    echo ""
-                    echo "  WARP runs independently from macshield."
-                else
-                    echo "  Installation failed. You can install manually:"
-                    echo "    brew install --cask cloudflare-warp"
-                    echo "  Or download from: https://1.1.1.1"
-                fi
-            else
-                echo "  Skipped."
-            fi
-        else
-            echo "  Homebrew not found. Install WARP manually:"
-            echo "    https://1.1.1.1"
-            echo "  Or install Homebrew first: https://brew.sh"
-        fi
-        ;;
-    *)
-        echo "  Skipping WARP. You can install it later:"
-        echo "    brew install --cask cloudflare-warp"
-        echo "    Or download from: https://1.1.1.1"
         ;;
 esac
 echo ""
