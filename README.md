@@ -355,8 +355,8 @@ macshield --help           Print help
 
 [macshield] What happens to the results:
 [macshield]   Results are displayed to your terminal and never saved to disk.
-[macshield]   Once you close or scroll past the output, they are gone.
-[macshield]   No files are created. No traces are left.
+[macshield]   No files are created. After the report, you will be offered the
+[macshield]   option to wipe your terminal scrollback so no trace remains.
 
 [macshield] Proceed with port scan? [y/N]:
 ```
@@ -375,7 +375,17 @@ If you type anything other than `y`, the scan does not run.
 macshield scan
 ```
 
-Reports are **never saved to disk** by default. The scan displays results to your terminal and that's it. No files are created, no traces are left. This is the security-first default.
+Reports are **never saved to disk** by default. The scan displays results to your terminal and that's it. No files are created. After the report, macshield offers to **wipe your terminal scrollback** so no trace of the report remains, not even in scroll history.
+
+```
+[macshield] The report is in your terminal scrollback. To leave no trace,
+[macshield] you can wipe the scrollback now. This clears your entire terminal
+[macshield] history (not just the report), so scroll up and copy anything you
+[macshield] need before saying yes.
+[macshield] Wipe terminal scrollback? [y/N]:
+```
+
+If you skip the wipe, you can clear it manually later with `printf '\e[3J' && clear`, or just close the terminal window.
 
 Example output:
 

@@ -795,8 +795,8 @@ cmd_scan() {
         echo ""
         log "${C_BOLD}What happens to the results:${C_RESET}"
         log "  Results are displayed to your terminal and never saved to disk."
-        log "  Once you close or scroll past the output, they are gone."
-        log "  No files are created. No traces are left."
+        log "  No files are created. After the report, you will be offered the"
+        log "  option to wipe your terminal scrollback so no trace remains."
         echo ""
         log_dim "  For scripting or non-interactive use:"
         log_dim "    macshield scan --purge 5m   Save report, auto-delete after 5 minutes"
@@ -978,6 +978,25 @@ cmd_scan() {
 
     # Display the report
     echo "$report"
+
+    # --- Offer to wipe terminal scrollback (interactive only) ---
+    if [[ "$quiet" != "--quiet" && -z "$auto_purge" ]]; then
+        echo ""
+        log "The report is in your terminal scrollback. To leave no trace,"
+        log "you can wipe the scrollback now. This clears your entire terminal"
+        log "history (not just the report), so scroll up and copy anything you"
+        log "need before saying yes."
+        echo ""
+        if ask "Wipe terminal scrollback?"; then
+            clear
+            printf '\e[3J'
+            log_success "Terminal scrollback cleared. No trace of the report remains."
+        else
+            log_dim "Scrollback kept. You can clear it later:"
+            log_dim "  printf '\\e[3J' && clear"
+            log_dim "Or close this terminal window."
+        fi
+    fi
 
     # --- Save to disk only with explicit --purge flag (always auto-deletes) ---
     if [[ -n "$auto_purge" ]]; then
