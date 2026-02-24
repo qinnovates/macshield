@@ -18,6 +18,8 @@
   ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
+Current version: 0.4.1
+
 Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi, relaxes on trusted networks.
 
 ## Table of contents
@@ -48,7 +50,7 @@ Network-aware macOS security hardening. Auto-hardens your Mac on untrusted WiFi,
 
 > **If you work in an enterprise, institution, or clinical setting**, you MUST use your organization's corporate VPN, managed devices, and enterprise security policies. macshield is not a substitute for enterprise security infrastructure. If your organization handles PII, neural recordings, HIPAA-covered data, or any sensitive research data, adhere to your corporate device and security policies at all times. **Qinnovates is not liable for any security compromises resulting from the use of macshield in lieu of proper enterprise or institutional security controls.**
 
-macshield is for **students, independent researchers, and individuals** who want baseline device hardening on public WiFi. It secures your local network identity (Layer 2), reduces potential for malware (with Quad9 DNS), and avoids routing your DNS queries through unknown public WiFi infrastructure where you have no visibility into where they go. It is not a VPN, does not encrypt traffic, and does not replace enterprise security. See [Build your own VPN](#build-your-own-vpn-students--researchers) if you need traffic encryption on a budget.
+macshield is for **students, independent researchers, and individuals** who want baseline device hardening on public WiFi. It secures your local network identity (Layer 1), reduces potential for malware (with Quad9 DNS), and avoids routing your DNS queries through unknown public WiFi infrastructure where you have no visibility into where they go. macshield is not a VPN and does not encrypt traffic. The installer optionally helps you set up a free VPN (WARP or ProtonVPN) as a separate layer. macshield is not a substitute for enterprise security. See [Build your own VPN](#build-your-own-vpn-students--researchers) if you need traffic encryption on a budget.
 
 ## Why it exists
 
@@ -115,7 +117,7 @@ These terms get thrown around together but they do completely different things. 
 
 ### macshield
 
-**What it does:** Secures your local network identity (Layer 2). Enables stealth mode (blocks pings and port scans), sets a generic hostname (so you don't broadcast "Kevin's MacBook Pro" to everyone on the WiFi), and disables NetBIOS (closes ports 137/138). With Quad9 DNS configured, it also blocks known malware domains and avoids routing your DNS queries through the public WiFi's own DNS infrastructure, which you have no control over or visibility into.
+**What it does:** Secures your local network identity (Layer 1). Enables stealth mode (blocks pings and port scans), sets a generic hostname (so you don't broadcast "Kevin's MacBook Pro" to everyone on the WiFi), and disables NetBIOS (closes ports 137/138). With Quad9 DNS configured, it also blocks known malware domains and avoids routing your DNS queries through the public WiFi's own DNS infrastructure, which you have no control over or visibility into.
 
 **What it protects:** Prevents passive reconnaissance on the local network. Stops your real name from leaking via hostname. Makes your Mac less visible to anyone scanning the same WiFi. Reduces potential for malware by blocking malicious domains at the DNS level.
 
@@ -127,10 +129,10 @@ These terms get thrown around together but they do completely different things. 
 Layer 4 - VPN          Encrypts all traffic, hides your IP from websites
 Layer 3 - WARP/Proxy   Routes traffic through encrypted tunnel (optional)
 Layer 2 - DNS          Controls who resolves your domain lookups
-Layer 1 - macshield    Secures your identity on the local network (L2)
+Layer 1 - macshield    Secures your identity on the local network
 ```
 
-Each layer protects something different. Using a VPN without macshield still broadcasts your hostname to everyone on the local WiFi. Using macshield without a VPN still exposes your traffic to your ISP. They are complementary, not interchangeable. The macshield installer optionally installs Cloudflare WARP (a free VPN) to cover Layers 3-4 alongside macshield's Layer 2 protection.
+Each layer protects something different. Using a VPN without macshield still broadcasts your hostname to everyone on the local WiFi. Using macshield without a VPN still exposes your traffic to your ISP. They are complementary, not interchangeable. The macshield installer optionally installs Cloudflare WARP (a free VPN) to cover Layers 3-4 alongside macshield's Layer 1 protection.
 
 In OSI terms, VPNs operate at Layer 3+ (Network and above). In the [QIF security model](https://github.com/qinnovates/qinnovate/blob/main/qif-framework/QIF-TRUTH.md), VPNs operate at the **S3 band** (Application). The attacks macshield blocks happen at the **S1 band** (Analog Front-End), below the VPN tunnel. In BCI systems, compromising S1 can propagate upward through S2, S3, through I0 (the neural interface), and into the neural domain. macshield defends the silicon domain floor.
 
@@ -174,11 +176,13 @@ The installer offers three privacy-focused DNS providers:
 
 Quad9 is listed first because it actively blocks known malware domains at the DNS level and operates under Swiss privacy law, which is stronger than US law for data protection. Cloudflare is the fastest. Mullvad DNS only works if you are connected to Mullvad VPN.
 
+Cloudflare 1.1.1.1 does not block malware. If you installed WARP, it uses 1.1.1.2 which does. This table covers standalone DNS only.
+
 All three are significant improvements over your ISP's default DNS, which typically logs your browsing history.
 
 ### Free VPN: Cloudflare WARP vs ProtonVPN
 
-macshield covers Layer 2 (local network identity). A VPN covers Layer 3+ (traffic encryption). Together they give you both layers of protection for free. The installer offers two options:
+macshield covers Layer 1 (local network identity). A VPN covers Layer 3+ (traffic encryption). Together they give you both layers of protection for free. The installer offers two options:
 
 | | Cloudflare WARP | ProtonVPN Free |
 |---|---|---|
@@ -287,7 +291,7 @@ LaunchAgent fires (WatchPaths on system network plists)
 macshield --trigger (runs as your user)
         |
         v
-Read current SSID via networksetup
+Detect current SSID (ipconfig, with fallbacks)
         |
         v
 Compute HMAC-SHA256(hardware_uuid, ssid)
@@ -304,6 +308,10 @@ Check Keychain for matching hash
     v       v
 sudo exact commands (via sudoers fragment)
 ```
+
+**Settle delay:** After detecting a network change, macshield waits 2 seconds for the connection to stabilize.
+
+**Concurrency control:** Concurrent execution is prevented via flock. Rapid network change events are deduplicated.
 
 **Network detection:** A LaunchAgent watches `/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist` and `preferences.plist`. Any WiFi change triggers macshield. The agent runs as your user. Privileged commands (stealth mode, hostname, NetBIOS) are elevated via a scoped sudoers fragment that you explicitly approve during installation.
 
@@ -711,6 +719,7 @@ macshield prints every action it takes, including the exact commands it runs:
 - **Ephemeral logs.** All output goes to `/tmp/` and is cleared on reboot. Logs never contain SSIDs.
 - **Scoped sudo.** The sudoers fragment grants NOPASSWD for exact commands only (stealth mode on/off, hostname set, NetBIOS control). You can revoke it anytime with `sudo rm /etc/sudoers.d/macshield`.
 - **Self-integrity check.** On install, macshield stores a SHA-256 hash of itself in Keychain. On every launch, it verifies the hash matches before executing. If the binary has been modified, macshield refuses to run and warns you. Re-install to store a new hash.
+- **Symlink-safe writes.** All writes to /tmp use symlink-safe functions, preventing local symlink attacks.
 - **SIP-compatible.** macshield does not modify protected system files. NetBIOS control may be limited on some macOS versions due to SIP, and macshield handles this gracefully.
 
 ## Comparison
@@ -1106,7 +1115,7 @@ Or run `./uninstall.sh` from the cloned repo.
 
 **Free VPN options. Full-stack protection for students on public WiFi.**
 
-macshield has always secured your local network identity (Layer 2). For the sake of protecting other layers, the installer now offers two free VPNs that encrypt your traffic and DNS (Layer 3+):
+macshield has always secured your local network identity (Layer 1). For the sake of protecting other layers, the installer now offers two free VPNs that encrypt your traffic and DNS (Layer 3+):
 
 - **Cloudflare WARP** (best for security): fastest (300+ edge nodes), free malware-blocking DNS (1.1.1.2), US-based
 - **ProtonVPN** (best for privacy): Swiss jurisdiction, open-source client, court-tested no-logs (subpoenaed in 2019, had nothing to hand over)
@@ -1136,7 +1145,7 @@ Together, macshield + a free VPN offers adequate protection with minimum require
 - Homebrew `post_install` auto-launches interactive installer in new Terminal window
 - Added `macshield setup` command, beginner warnings, revert instructions
 - Homebrew tap renamed to `qinnovates/tools` for cleaner install command
-- Updated messaging: macshield secures Layer 2, reduces malware potential with Quad9, avoids unknown WiFi DNS
+- Updated messaging: macshield secures Layer 1, reduces malware potential with Quad9, avoids unknown WiFi DNS
 
 ### v0.2.0
 
