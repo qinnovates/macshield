@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macshield installer - copies the analyzer to /usr/local/bin
+# macshield installer - installs the Swift binary or Bash fallback
 set -euo pipefail
 
 PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -16,6 +16,8 @@ if [[ "$SCRIPT_DIR" == *"/libexec"* ]] && command -v macshield &>/dev/null; then
 fi
 
 INSTALL_PATH="/usr/local/bin/macshield"
+SWIFT_BINARY="$SCRIPT_DIR/.build/release/MacShield"
+BASH_SCRIPT="$SCRIPT_DIR/macshield.sh"
 
 echo ""
 echo "=== macshield installer ==="
@@ -24,12 +26,28 @@ echo "macshield is a read-only macOS security analyzer."
 echo "It checks your system security posture, scans ports, lists"
 echo "persistence items, and audits app permissions."
 echo ""
-echo "It does NOT modify your system. No sudo needed. No background"
-echo "processes. No LaunchAgents. No Keychain writes."
+echo "It does NOT modify your system. No background processes."
+echo "No LaunchAgents. No Keychain writes."
 echo ""
-echo "This installer copies macshield.sh to $INSTALL_PATH"
+
+# Determine which version to install
+if [[ -f "$SWIFT_BINARY" ]]; then
+    SOURCE="$SWIFT_BINARY"
+    echo "Found compiled Swift binary (v1.0.0)."
+    echo "This installer copies MacShield to $INSTALL_PATH"
+elif [[ -f "$BASH_SCRIPT" ]]; then
+    SOURCE="$BASH_SCRIPT"
+    echo "Swift binary not found. Using Bash reference version (v0.5.0)."
+    echo "To build the Swift version: swift build -c release"
+    echo ""
+    echo "This installer copies macshield.sh to $INSTALL_PATH"
+else
+    echo "Error: Neither Swift binary nor macshield.sh found in $SCRIPT_DIR"
+    exit 1
+fi
+
 echo ""
-echo "Review the source: cat $SCRIPT_DIR/macshield.sh"
+echo "Review the source: https://github.com/qinnovates/macshield"
 echo ""
 
 printf "Install? [y/N]: "
@@ -39,7 +57,7 @@ if [[ ! "$reply" =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-sudo cp "$SCRIPT_DIR/macshield.sh" "$INSTALL_PATH"
+sudo cp "$SOURCE" "$INSTALL_PATH"
 sudo chmod 755 "$INSTALL_PATH"
 
 echo ""
