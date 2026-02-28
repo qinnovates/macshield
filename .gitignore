@@ -1,3 +1,9 @@
 _memory/
 node_modules/
 ui/_memory/
+
+# Swift
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/

@@ -13,14 +13,29 @@
   ║              [ by qinnovate // github.com/qinnovates ]               ║
   ║                                                                      ║
   ║        >> macos security analyzer & best practices report <<         ║
-  ║        >> read-only | zero attack surface | pure bash <<             ║
+  ║        >> read-only | zero attack surface | swift + bash <<          ║
   ║                                                                      ║
   ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
-Current version: 0.5.0
+Current version: 1.0.0
 
-Read-only macOS security analyzer. Checks your system security posture, scans ports, lists persistence items, audits app permissions. No system modifications. No background processes. No sudo. Zero attack surface.
+> [!CAUTION]
+> **Use at your own risk.** macshield is a security analysis tool provided as-is with no warranty. It does not modify your system, but you are solely responsible for any actions you take based on its output. Always verify findings independently before making security decisions. **Qinnovates is not liable for any consequences arising from the use of this tool.**
+
+Read-only macOS security analyzer built in Swift. Checks your system security posture, scans ports, lists persistence items, audits app permissions. No system modifications. No background processes. No sudo. Zero attack surface.
+
+## v1.0 — Swift rewrite
+
+macshield v1.0 is a complete rewrite from Bash to Swift. Key improvements:
+- **Type-safe risk scoring** with weighted categories (0-100 composite score, A-F grade)
+- **Confidence metric** — inconclusive checks degrade score confidence instead of silently passing
+- **Machine-readable output** — `--format json` for CI/CD integration
+- **41 unit tests** with full mock coverage (no real system calls in tests)
+- **New checks:** AMFI status, XProtect version, unsigned persistence items, kernel extension audit
+- **Code signing verification** at launch with designated requirement + team ID validation
+
+The original Bash version (`macshield.sh`) is preserved for reference.
 
 ## Table of contents
 
