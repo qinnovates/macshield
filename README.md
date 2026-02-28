@@ -21,21 +21,39 @@
 Current version: 1.0.0
 
 > [!CAUTION]
-> **Use at your own risk.** macshield is a security analysis tool provided as-is with no warranty. It does not modify your system, but you are solely responsible for any actions you take based on its output. Always verify findings independently before making security decisions. **Qinnovates is not liable for any consequences arising from the use of this tool.**
+> **Use at your own risk.** macshield is a security **analysis** tool, not a security **solution**. It does not protect you. It does not modify your system. It reports what it finds, and what it finds may be incomplete, incorrect, or outdated. You are solely responsible for any actions you take based on its output. Always verify findings independently before making security decisions.
+>
+> **Beware the McNamara Fallacy** (also called the *quantitative fallacy*): measuring what is easy to measure, ignoring what is not, and assuming what cannot be measured does not matter. A "Score: 95, Grade: A" does **not** mean your Mac is secure. It means the checks macshield ran did not find issues. There are entire attack classes macshield cannot detect: zero-days, firmware implants, supply chain compromises, social engineering, memory corruption, kernel exploits, and more. A green report can create a **false sense of security** that is more dangerous than no report at all, because it discourages further investigation.
+>
+> **Qinnovates is not liable for any consequences arising from the use of this tool.**
 
-Read-only macOS security analyzer built in Swift. Checks your system security posture, scans ports, lists persistence items, audits app permissions. No system modifications. No background processes. No sudo. Zero attack surface.
+Read-only macOS security posture analyzer built in Swift. Checks system configuration, scans ports, lists persistence items, audits app permissions. No system modifications. No background processes. No sudo. Zero attack surface.
+
+## What macshield does
+
+macshield reads your Mac's security configuration and reports what it finds. It checks ~50 settings across 6 categories: system protection, firewall/network, sharing services, persistence integrity, privacy/permissions, and file hygiene. It produces a weighted risk score (0-100) with a confidence metric that degrades when checks cannot run.
+
+## What macshield does NOT do
+
+- **Does not protect you.** It is a read-only analyzer, not a firewall, antivirus, or endpoint agent.
+- **Does not detect malware.** It checks configuration, not running processes or file signatures.
+- **Does not detect zero-days, APTs, firmware implants, or supply chain attacks.**
+- **Does not guarantee accuracy.** It parses CLI tool output, which can change between macOS versions.
+- **Does not replace enterprise security.** If you work in an enterprise, institution, or clinical setting, use your organization's managed devices and security stack. macshield is not a substitute.
+- **Does not make your Mac secure.** Only you can do that.
 
 ## v1.0 — Swift rewrite
 
-macshield v1.0 is a complete rewrite from Bash to Swift. Key improvements:
-- **Type-safe risk scoring** with weighted categories (0-100 composite score, A-F grade)
-- **Confidence metric** — inconclusive checks degrade score confidence instead of silently passing
-- **Machine-readable output** — `--format json` for CI/CD integration
-- **41 unit tests** with full mock coverage (no real system calls in tests)
-- **New checks:** AMFI status, XProtect version, unsigned persistence items, kernel extension audit
-- **Code signing verification** at launch with designated requirement + team ID validation
+macshield v1.0 is a complete rewrite from Bash to Swift. The original Bash version (`macshield.sh`) is preserved for reference.
 
-The original Bash version (`macshield.sh`) is preserved for reference.
+- **Type-safe risk scoring** with weighted categories (0-100 composite score, A-F grade)
+- **Weighted confidence metric** — inconclusive checks degrade confidence proportional to category importance. A failed SIP check (30% weight) degrades confidence more than a failed file hygiene check (10% weight). The score explicitly warns you when confidence is low.
+- **Machine-readable output** — `--format json` for CI/CD integration, `--format human` for terminal
+- **42 unit tests** with full mock coverage (no real system calls in tests)
+- **New checks:** AMFI status with value parsing, XProtect version extraction, unsigned persistence items, kernel extension audit, Rosetta detection
+- **Code signing verification** at launch with designated requirement + team ID validation
+- **Hardened ProcessRunner** — async pipe draining prevents deadlocks, real timeout enforcement with SIGKILL fallback, clamped timeout range
+- **OS version guardrails** — TCC queries enforce macOS 14+ requirement to prevent silent misreporting
 
 ## Table of contents
 
@@ -84,37 +102,36 @@ All commands are **read-only**. No sudo. No Keychain writes. No state files. No 
 
 ## Install
 
-### Homebrew (recommended)
-
-```bash
-brew tap qinnovates/tools
-brew install macshield
-```
-
-### Manual
+### From source (requires Swift 6.0+ / Xcode 16+)
 
 ```bash
 git clone https://github.com/qinnovates/macshield.git
 cd macshield
-chmod +x install.sh macshield.sh
-./install.sh
+swift build -c release
+sudo cp .build/release/MacShield /usr/local/bin/macshield
 ```
 
-The installer copies `macshield.sh` to `/usr/local/bin/macshield`. That's it.
+### Bash version (no build required)
+
+```bash
+git clone https://github.com/qinnovates/macshield.git
+cd macshield
+chmod +x macshield.sh
+sudo cp macshield.sh /usr/local/bin/macshield
+```
 
 ## Commands
 
 ```
-macshield scan             Scan open ports (display only, nothing saved to disk)
-macshield scan --purge 5m  Scan, save report to disk, auto-delete after duration
-macshield scan --quiet     Scan without prompts, display only
-macshield audit            System security posture check (read-only)
-macshield connections      Show active TCP connections
-macshield persistence      List non-Apple LaunchAgents, LaunchDaemons, login items
-macshield permissions      Show apps with sensitive permissions (camera, mic, etc.)
-macshield purge            Delete all macshield logs, reports, and temp files
-macshield --version        Print version
-macshield --help           Print help
+macshield audit                    Full security posture check with risk score
+macshield audit --format json      Machine-readable JSON output
+macshield audit --format human     Colored terminal output (default when TTY)
+macshield scan                     Scan open TCP/UDP ports with process info
+macshield connections              Show active TCP connections with remote endpoints
+macshield persistence              List non-Apple LaunchAgents, LaunchDaemons, kexts, cron
+macshield permissions              Show apps with sensitive TCC permissions
+macshield --version                Print version
+macshield --help                   Print help
 ```
 
 ## Port scanning
@@ -320,22 +337,26 @@ networksetup -setsocksfirewallproxystate Wi-Fi on
 ## Security model
 
 - **Zero attack surface.** macshield is read-only. No sudo, no Keychain writes, no state files, no background processes. Nothing to compromise.
-- **Pure bash.** Every line is readable and auditable. No compiled binaries, no helper tools, no frameworks.
-- **No network calls.** macshield never phones home, never auto-updates, never sends telemetry.
+- **Swift + open source.** Every line is readable and auditable. Single dependency: `swift-argument-parser` (Apple-maintained). The original Bash version is also preserved.
+- **No network calls.** macshield never phones home, never auto-updates, never sends telemetry. Zero packets leave your machine.
 - **No persistence.** No LaunchAgent, no daemon, no cron job. macshield runs only when you invoke it.
+- **Code signing verification.** The Swift binary verifies its own code signature at launch using the Security framework (SecStaticCode). Tampered binaries refuse to run.
+- **Parameterized SQL only.** TCC database queries use sqlite3 C API with parameterized queries. No string interpolation of service names into SQL.
+- **Output includes hostname.** `--format json` output contains your Mac's hostname. Treat saved reports as potentially identifying information.
+- **Confidence, not certainty.** Every report includes a confidence metric. If checks could not run (no Full Disk Access, command timeout, unexpected output), the score explicitly says so instead of silently reporting PASS.
 
 ## Comparison
 
 | Feature | macshield | Little Snitch | Intego NetBarrier | LuLu | ALBATOR |
 |---|---|---|---|---|---|
-| Security audit | Yes | No | No | No | Yes (static) |
+| Security audit | Yes (risk scored) | No | No | No | Yes (static) |
 | Port scanning | Yes | No | No | No | No |
-| Persistence check | Yes | No | No | No | No |
-| Permissions audit | Yes | No | No | No | No |
+| Persistence check | Yes (with signing) | No | No | No | No |
+| Permissions audit | Yes (TCC) | No | No | No | No |
 | Connection monitor | Yes | Yes | Yes | Yes | No |
+| JSON output | Yes | No | No | No | No |
 | Open source | Yes | No | No | Yes | Yes |
 | Price | Free | $69 | $50/yr | Free | Free |
-| Pure bash / auditable | Yes | No | No | No | Yes |
 | Modifies system | No | Yes | Yes | Yes | Yes |
 | Background process | No | Yes | Yes | Yes | N/A |
 
@@ -386,6 +407,24 @@ sudo rm -f /etc/sudoers.d/macshield
 ```
 
 ## Changelog
+
+### v1.0.0
+
+**Complete Swift rewrite. Type-safe. Testable. Machine-readable.**
+
+Full rewrite from 1153-line Bash script to Swift 6.0 with SwiftPM. 42 unit tests, zero warnings.
+
+- New: Weighted risk scoring (0-100) with confidence metric across 6 categories
+- New: INCONCLUSIVE status — checks that fail to run degrade confidence instead of silently passing
+- New: `--format json` for CI/CD integration, `--format human` for terminal
+- New: AMFI status check with value parsing (not just key presence)
+- New: XProtect version extraction, non-Apple kext detection, unsigned persistence items
+- New: Code signing self-verification at launch (SecStaticCode + team ID)
+- New: TCC queries via parameterized sqlite3 C API with OS version guardrail
+- New: Hardened ProcessRunner with async pipe draining, real timeout, SIGKILL fallback
+- Fixed: SIP substring false positive (`"disabled".contains("enabled")` was `true`)
+- Fixed: All string-based categories replaced with compiler-enforced enums
+- Dependency: swift-argument-parser only (Apple-maintained)
 
 ### v0.5.0
 

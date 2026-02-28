@@ -183,6 +183,27 @@ struct AuditEngineTests {
         #expect(findings[0].severity == .critical)
     }
 
+    @Test("AMFI check with value=0 is warn, not fail")
+    func amfiValueZero() async {
+        let mock = MockProcessRunner()
+        mock.registerSuccess(
+            executable: "/usr/sbin/nvram",
+            arguments: ["-p"],
+            stdout: "amfi_get_out_of_my_way\t0\nother-var\tvalue"
+        )
+
+        let check = AMFICheck()
+        let caps = SystemCapabilities(
+            hasFullDiskAccess: false, architecture: "arm64",
+            osVersion: "14.0", isRosetta: false
+        )
+        let findings = await check.run(runner: mock, capabilities: caps)
+
+        // Key exists but value is 0 — warn, not fail
+        #expect(findings[0].status == .warn)
+        #expect(findings[0].status != .fail)
+    }
+
     @Test("Firewall disabled is not a false positive")
     func firewallDisabledNotFalsePositive() async {
         let mock = MockProcessRunner()

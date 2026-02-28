@@ -68,13 +68,15 @@ public struct FileVaultCheck: SecurityCheck {
             timeout: 5.0
         )
 
-        let output = result.stdout
-        if output.contains("On") {
+        let output = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        // fdesetup outputs exactly "FileVault is On." or "FileVault is Off."
+        // Match exact phrases to avoid false positives from unexpected output
+        if output.contains("FileVault is On") {
             return [Finding(
                 id: id, check: "FileVault Disk Encryption", category: category,
                 status: .pass, severity: .info, detail: "enabled"
             )]
-        } else if output.contains("Off") {
+        } else if output.contains("FileVault is Off") {
             return [Finding(
                 id: id, check: "FileVault Disk Encryption", category: category,
                 status: .warn, severity: .high,
@@ -109,7 +111,7 @@ public struct GatekeeperCheck: SecurityCheck {
         // Check both stdout and stderr — spctl writes to stderr on some versions
         // Check "disabled" BEFORE "enabled" to avoid substring false positive
         let combined = (result.stdout + "\n" + result.stderr).lowercased()
-        if combined.contains("assessments disabled") || combined.contains("not enabled") {
+        if combined.contains("assessments disabled") {
             return [Finding(
                 id: id, check: "Gatekeeper", category: category,
                 status: .fail, severity: .high,
@@ -155,12 +157,28 @@ public struct AMFICheck: SecurityCheck {
             )]
         }
 
-        if result.stdout.contains("amfi_get_out_of_my_way") {
+        // Parse nvram output line by line — format is "key\tvalue"
+        for line in result.stdout.components(separatedBy: "\n") {
+            let parts = line.components(separatedBy: "\t")
+            guard parts.count >= 2,
+                  parts[0].trimmingCharacters(in: .whitespaces) == "amfi_get_out_of_my_way" else {
+                continue
+            }
+            let value = parts[1].trimmingCharacters(in: .whitespaces)
+            if value == "1" {
+                return [Finding(
+                    id: id, check: "Apple Mobile File Integrity (AMFI)", category: category,
+                    status: .fail, severity: .critical,
+                    detail: "AMFI is disabled (amfi_get_out_of_my_way=1 in NVRAM)",
+                    remediation: "Boot to Recovery and run 'nvram -d amfi_get_out_of_my_way'"
+                )]
+            }
+            // Key exists but value is not 1 — still suspicious but not disabled
             return [Finding(
                 id: id, check: "Apple Mobile File Integrity (AMFI)", category: category,
-                status: .fail, severity: .critical,
-                detail: "AMFI is disabled (amfi_get_out_of_my_way set in NVRAM)",
-                remediation: "Boot to Recovery and run 'nvram -d amfi_get_out_of_my_way'"
+                status: .warn, severity: .high,
+                detail: "amfi_get_out_of_my_way=\(Sanitizer.sanitizeOutput(value, maxLength: 20)) in NVRAM (not =1, but unusual)",
+                remediation: "Verify with 'nvram -p | grep amfi' — remove if unexpected"
             )]
         }
 

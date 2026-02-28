@@ -53,7 +53,9 @@ public struct RiskScore: Codable, Sendable {
     /// Compute the risk score from findings.
     /// Each category starts at 100, deductions applied per finding severity.
     /// Composite = weighted average of category scores, clamped to 0-100.
-    /// Confidence = ratio of non-inconclusive findings to total findings.
+    /// Confidence = weighted by category importance so an inconclusive critical
+    /// check (e.g., SIP in systemProtection @ 30%) degrades confidence more than
+    /// a trivial check (e.g., file hygiene @ 10%).
     public static func compute(from findings: [Finding]) -> RiskScore {
         var categoryDeductions: [Category: Double] = [:]
         var categoryTotalChecks: [Category: Int] = [:]
@@ -86,12 +88,24 @@ public struct RiskScore: Codable, Sendable {
             composite += score * cat.weight
         }
 
-        // Confidence: proportion of checks that actually ran (not inconclusive)
-        let totalChecks = findings.count
-        let inconclusiveTotal = findings.filter { $0.status == .inconclusive }.count
+        // Weighted confidence: each category's contribution is proportional to its weight.
+        // If a high-weight category (systemProtection=30%) has all inconclusive checks,
+        // that degrades confidence more than a low-weight category (fileHygiene=10%).
+        var weightedConfidenceSum = 0.0
+        var totalActiveWeight = 0.0
+
+        for cat in Category.allCases {
+            let total = categoryTotalChecks[cat, default: 0]
+            guard total > 0 else { continue }  // Category not tested = excluded from confidence
+            let inconclusive = categoryInconclusiveCounts[cat, default: 0]
+            let categoryConfidence = Double(total - inconclusive) / Double(total)
+            weightedConfidenceSum += categoryConfidence * cat.weight
+            totalActiveWeight += cat.weight
+        }
+
         let confidence: Double
-        if totalChecks > 0 {
-            confidence = Double(totalChecks - inconclusiveTotal) / Double(totalChecks)
+        if totalActiveWeight > 0 {
+            confidence = weightedConfidenceSum / totalActiveWeight
         } else {
             confidence = 0.0  // No checks ran = zero confidence
         }

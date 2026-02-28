@@ -30,6 +30,9 @@ public struct SystemProcessRunner: ProcessRunning {
         arguments: [String],
         timeout: TimeInterval = 10.0
     ) async -> ProcessResult {
+        // Clamp timeout to sane range: 0.1s - 300s
+        let clampedTimeout = max(0.1, min(timeout, 300.0))
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
@@ -43,6 +46,13 @@ public struct SystemProcessRunner: ProcessRunning {
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
+
+        // Set termination handler BEFORE launching to avoid race condition
+        // where process exits before handler is registered
+        let terminationSemaphore = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in
+            terminationSemaphore.signal()
+        }
 
         do {
             try process.run()
@@ -61,7 +71,6 @@ public struct SystemProcessRunner: ProcessRunning {
         let stdoutHandle = stdoutPipe.fileHandleForReading
         let stderrHandle = stderrPipe.fileHandleForReading
 
-        // Collect pipe data on background threads (non-blocking)
         let outDataTask = Task.detached { () -> Data in
             stdoutHandle.readDataToEndOfFile()
         }
@@ -71,10 +80,11 @@ public struct SystemProcessRunner: ProcessRunning {
 
         // Race: wait for termination vs timeout
         let timedOut = await withTaskGroup(of: Bool.self) { group in
-            // Task 1: wait for process to finish
+            // Task 1: wait for process to finish via semaphore
             group.addTask {
                 await withCheckedContinuation { continuation in
-                    process.terminationHandler = { _ in
+                    DispatchQueue.global().async {
+                        terminationSemaphore.wait()
                         continuation.resume(returning: false)
                     }
                 }
@@ -82,7 +92,7 @@ public struct SystemProcessRunner: ProcessRunning {
 
             // Task 2: timeout watchdog
             group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(clampedTimeout * 1_000_000_000))
                 return true
             }
 
@@ -94,7 +104,7 @@ public struct SystemProcessRunner: ProcessRunning {
                 // Timeout fired first — kill the process
                 if process.isRunning {
                     process.terminate()
-                    // Give it 1s to die gracefully, then force kill
+                    // Give it 500ms to die gracefully, then force kill
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     if process.isRunning {
                         kill(process.processIdentifier, SIGKILL)
@@ -108,6 +118,10 @@ public struct SystemProcessRunner: ProcessRunning {
         // Collect the pipe data (pipes close when process terminates)
         let outData = await outDataTask.value
         let errData = await errDataTask.value
+
+        // Cancel detached tasks if they somehow linger
+        outDataTask.cancel()
+        errDataTask.cancel()
 
         let outStr = String(data: outData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

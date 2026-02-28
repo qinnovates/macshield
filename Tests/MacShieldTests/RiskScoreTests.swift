@@ -115,9 +115,11 @@ struct RiskScoreTests {
                     status: .inconclusive, severity: .medium, detail: "no FDA"),
         ]
         let score = RiskScore.compute(from: findings)
-        #expect(score.confidence == 0.5)  // 1 of 2 checks ran
+        // Weighted confidence: systemProtection(1.0) * 0.30 + privacyPermissions(0.0) * 0.10
+        // = 0.30 / 0.40 = 0.75 (floating point: use approximate comparison)
+        #expect(abs(score.confidence - 0.75) < 0.001)
         #expect(score.inconclusiveCounts[.privacyPermissions] == 1)
-        #expect(score.confidenceLabel == "Low")
+        #expect(score.confidenceLabel == "Medium")
     }
 
     @Test("All inconclusive means zero confidence")

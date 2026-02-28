@@ -9,29 +9,38 @@ public enum TCCReader {
     /// SQLITE_TRANSIENT tells SQLite to make its own copy of the string.
     private static let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
+    /// Minimum macOS version for auth_value=2 semantics.
+    /// On macOS <14, auth_value=1 means "allowed" — queries would silently misreport.
+    public static let minimumOSVersion = OperatingSystemVersion(majorVersion: 14, minorVersion: 0, patchVersion: 0)
+
     /// Query apps granted a specific TCC permission from the user database.
-    /// Returns nil if database is unreadable (no FDA).
+    /// Returns nil if database is unreadable (no FDA) or OS version is unsupported.
     /// Returns empty array if no apps have the permission.
     public static func queryGrantedApps(service: String) -> [String]? {
+        // Enforce macOS 14+ — auth_value semantics differ on older versions
+        guard ProcessInfo.processInfo.isOperatingSystemAtLeast(minimumOSVersion) else {
+            return nil
+        }
+
         let userDB = NSHomeDirectory() + "/Library/Application Support/com.apple.TCC/TCC.db"
         let systemDB = "/Library/Application Support/com.apple.TCC/TCC.db"
 
-        var allApps: [String] = []
+        var allApps: Set<String> = []  // Use Set to deduplicate across DBs
         var anySuccess = false
 
         // Query user-level TCC database
         if let userApps = queryDatabase(path: userDB, service: service) {
-            allApps.append(contentsOf: userApps)
+            allApps.formUnion(userApps)
             anySuccess = true
         }
 
         // Query system-level TCC database (may not be readable without root)
         if let systemApps = queryDatabase(path: systemDB, service: service) {
-            allApps.append(contentsOf: systemApps)
+            allApps.formUnion(systemApps)
             anySuccess = true
         }
 
-        return anySuccess ? allApps : nil
+        return anySuccess ? Array(allApps).sorted() : nil
     }
 
     /// Query a specific TCC database file.
