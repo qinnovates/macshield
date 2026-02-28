@@ -679,7 +679,7 @@ cmd_audit() {
         ((fail_count++)) || true
         echo "  Duplicate MACs:"
         echo "$arp_dupes" | while read -r mac; do
-            echo "    $mac -> $(arp -a 2>/dev/null | grep "$mac" | awk '{print $2}')"
+            echo "    $mac -> $(arp -a 2>/dev/null | grep -F "$mac" | awk '{print $2}')"
         done
     fi
 
@@ -981,6 +981,11 @@ cmd_permissions() {
     tcc_query() {
         local service="$1"
         local label="$2"
+        # Validate service name is alphanumeric (prevent SQL injection)
+        if [[ ! "$service" =~ ^[a-zA-Z]+$ ]]; then
+            warn "Invalid TCC service name: $service"
+            return
+        fi
         local results
         results=$(sqlite3 "$tcc_db" \
             "SELECT client FROM access WHERE service='$service' AND auth_value=2;" 2>/dev/null || true)
