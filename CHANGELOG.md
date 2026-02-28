@@ -4,6 +4,48 @@ All notable changes to macshield will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0] - 2026-02-28
+
+### Changed
+- **Complete rewrite from Bash to Swift 6.0 with SwiftPM.** 32 source files, 8 test files, 42 unit tests, zero warnings.
+- **Type-safe risk scoring** with weighted categories (0-100 composite score, A-F grade). Category weights: System Protection (30%), Firewall/Network (20%), Sharing Services (15%), Persistence Integrity (15%), Privacy/Permissions (10%), File Hygiene (10%).
+- **Weighted confidence metric.** Inconclusive checks degrade confidence proportional to category importance. A failed SIP check degrades confidence more than a failed file hygiene check.
+
+### Added
+- `--format json` for CI/CD integration, `--format human` for terminal output.
+- INCONCLUSIVE status for checks that fail to run (replaces silent PASS).
+- AMFI status check with value parsing (not just key presence).
+- XProtect version extraction, non-Apple kernel extension detection, unsigned persistence items.
+- Code signing self-verification at launch (SecStaticCode + team ID validation).
+- TCC queries via parameterized sqlite3 C API with OS version guardrail (macOS 14+).
+- Hardened ProcessRunner with async pipe draining, real timeout enforcement, SIGKILL fallback, clamped timeout range.
+
+### Fixed
+- SIP substring false positive (`"disabled".contains("enabled")` was `true`).
+- All string-based categories replaced with compiler-enforced enums.
+
+### Dependencies
+- Single dependency: `swift-argument-parser` (Apple-maintained).
+
+## [0.5.0] - 2026-02-25
+
+### Changed
+- **Stripped to read-only analyzer with zero attack surface.** Any security tool that modifies your system introduces its own attack surface. v0.5.0 removes all system modifications and teaches users to harden manually.
+
+### Removed
+- `harden`, `relax`, `trust`, `untrust`, `--trigger`, `--check`, `setup` commands.
+- LaunchAgent, LaunchDaemon, sudoers fragment, Keychain writes, HMAC trust storage, integrity check, state tracking.
+- `install.sh` setup wizard (8 steps reduced to 1: copy the binary).
+
+### Added
+- Manual hardening commands in help text and README.
+- Uninstaller cleans up all legacy artifacts from v0.4.x and earlier.
+
+## [0.4.1] - 2026-02-23
+
+### Added
+- **Self-integrity check.** On install, macshield stores a SHA-256 hash in Keychain and verifies on launch. Tampered binaries refuse to run.
+
 ## [0.4.0] - 2026-02-22
 
 ### Added
